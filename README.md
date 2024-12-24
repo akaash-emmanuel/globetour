@@ -8,7 +8,7 @@
 
 =======
 
-Built using 3js and webpack to implement this project 
+Built using 3js and webpack. 
 
 =======
 
@@ -27,3 +27,5 @@ Random stars set in the background with random timed shooting stars around.
 Definitely looking forward to adding more functionalities later to make it a full fledged real-time project.
 
 =======
+
+The country outlines may not be accurate as they were taken based off a .json file. To get them to be more accurate, would have to pinpoint their (lat,lon) accurately and map them. The arc may jump to a point in the ocean, it most likely is an island country that exists but not represented for the same reason.
