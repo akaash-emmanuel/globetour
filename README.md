@@ -24,7 +24,7 @@ Random stars set in the background with random timed shooting stars around.
 
 =======
 
-Definitely looking forward to adding more functionalities later to make it a full fledged real-time project.
+Definitely looking forward to adding more functionalities and performance changes later to make it a full fledged real-time project weather mapping or flight traffic visualizing project.
 
 =======
 
