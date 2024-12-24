@@ -16,7 +16,7 @@ Do use any music you like - as it won't run otherwise - saved as spacemusic.mp3,
 
 =======
 
-Used three-globe library built by vasturiano and implemented it further. Used nearest neighbor algorithm and calculated the optimal path to all the country capitals - all written BY HAND in a json file of each countries' capital, latitude and longitude - and visualized them as arcs. 
+Used three-globe library built by vasturiano and implemented it further. Used nearest neighbor algorithm and calculated the optimal path to all the country capitals - all written BY HAND in a json file of each countries' capital, latitude and longitude - and visualized the paths between them as arcs. 
 
 =======
 
