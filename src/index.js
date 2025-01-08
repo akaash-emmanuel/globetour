@@ -310,7 +310,7 @@ function createButtons() {
   button2.innerText = "Internet Cables";
   button2.style.padding = "10px 20px";
   button2.style.fontSize = "16px";
-  button2.style.backgroundColor = "#0c529c"; // Same color as Button 1
+  button2.style.backgroundColor = "#0c529c";
   button2.style.color = "#ffffff";
   button2.style.border = "none";
   button2.style.borderRadius = "5px";
@@ -322,7 +322,7 @@ function createButtons() {
   button3.innerText = "Space Debris";
   button3.style.padding = "10px 20px";
   button3.style.fontSize = "16px";
-  button3.style.backgroundColor = "#0c529c"; // Same color as Button 1
+  button3.style.backgroundColor = "#0c529c"; 
   button3.style.color = "#ffffff";
   button3.style.border = "none";
   button3.style.borderRadius = "5px";
@@ -334,30 +334,30 @@ function createButtons() {
   resetButton.innerText = "Reset";
   resetButton.style.padding = "10px 20px";
   resetButton.style.fontSize = "16px";
-  resetButton.style.backgroundColor = "#ff4d4d"; // Red color for reset
+  resetButton.style.backgroundColor = "#ff4d4d"; //red
   resetButton.style.color = "#ffffff";
   resetButton.style.border = "none";
   resetButton.style.borderRadius = "5px";
   resetButton.style.cursor = "pointer";
   buttonContainer.appendChild(resetButton);
 
-  // Add event listener to Button 1
+
   button1.addEventListener("click", () => {
     createVerticalButton();
     showShortestPath();
   });
 
-  // Add event listener to Button 2
+
   button2.addEventListener("click", () => {
     showInternetCables();
   });
 
-  // Add event listener to Button 3
+
   button3.addEventListener("click", () => {
     showSpaceDebris();
   });
 
-  // Add event listener to Reset Button
+
   resetButton.addEventListener("click", () => {
     window.location.reload(); // Refresh the page
   });
@@ -367,7 +367,6 @@ function createButtons() {
 
 function showSpaceDebris() {
   createVerticalButton();
-  // Clear existing arcs and other visualizations
   Globe.arcsData([]);
 
   // Create orbital paths for space debris
@@ -389,8 +388,8 @@ function showSpaceDebris() {
     },
   ];
 
-  // Scale factor to make orbits visually distinct
-  const scaleFactor = 0.01; // Decreased scale factor to bring debris closer to Earth
+
+  const scaleFactor = 0.01; 
 
   // Add debris as small spheres and their orbits
   const numDebris = 100; // Number of debris pieces to generate
@@ -409,7 +408,7 @@ function showSpaceDebris() {
 
     // Create debris sphere
     const debrisGeometry = new SphereGeometry(0.5, 8, 8);
-    const debrisMaterial = new MeshBasicMaterial({ color: new Color(orbit.color) }); // Use THREE.Color
+    const debrisMaterial = new MeshBasicMaterial({ color: new Color(orbit.color) }); 
     const debrisMesh = new Mesh(debrisGeometry, debrisMaterial);
 
     // Convert latitude, longitude, and altitude to 3D position
@@ -429,7 +428,7 @@ function showSpaceDebris() {
       64 // Number of segments
     );
     const orbitMaterial = new MeshBasicMaterial({
-      color: new Color(orbit.color), // Use THREE.Color
+      color: new Color(orbit.color), 
       transparent: true,
       opacity: 0.3,
       side: DoubleSide,
@@ -440,7 +439,6 @@ function showSpaceDebris() {
     globeGroup.add(orbitMesh);
   }
 
-  // Update the vertical button content
   const verticalButton = document.getElementById("verticalButton");
   if (verticalButton) {
     const explanationText = `
@@ -451,7 +449,6 @@ function showSpaceDebris() {
 }
 
 function showInternetCables() {
-  // Create the vertical button
   createVerticalButton();
 
   // Example data for undersea internet cables
@@ -786,7 +783,7 @@ function createVerticalButton() {
 }
 
 function typeWriter(htmlContent, element, speed = 50) {
-  element.innerHTML = ""; // Clear the element
+  element.innerHTML = ""; 
 
   // Create a temporary container to hold the HTML content
   const tempDiv = document.createElement("div");
@@ -801,7 +798,6 @@ function typeWriter(htmlContent, element, speed = 50) {
       const node = nodes[index];
 
       if (node.nodeType === Node.TEXT_NODE) {
-        // Type plain text
         if (charIndex < node.textContent.length) {
           element.innerHTML += node.textContent.charAt(charIndex);
           charIndex++;
@@ -812,7 +808,6 @@ function typeWriter(htmlContent, element, speed = 50) {
           type();
         }
       } else if (node.nodeType === Node.ELEMENT_NODE) {
-        // Add element instantly and move to the next node
         const newNode = node.cloneNode(true);
         element.appendChild(newNode);
         index++;
