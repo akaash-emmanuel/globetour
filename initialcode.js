@@ -4,11 +4,6 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import countries from "./assets/Globe Data Min.json";
 import spaceMusic from "./assets/spacemusic.mp3";
 
-// MediaPipe Hands setup
-import { Hands, HAND_CONNECTIONS } from "@mediapipe/hands";
-import { Camera } from "@mediapipe/camera_utils";
-
-
 let renderer, camera, scene, controls;
 let Globe;
 let globeGroup;
@@ -16,11 +11,8 @@ let audio;
 let audioPlayed = false;
 let windowHalfX = window.innerWidth / 2;
 let windowHalfY = window.innerHeight / 2;
-let currentAnimation = null;
-let currentTypeWriter = null;
 let mouseX = 0;
 let mouseY = 0;
-
 
 init();
 globeGroup = initGlobe();
@@ -67,36 +59,20 @@ function init() {
   scene.fog = new Fog(0x535ef3, 400, 2000);
 
   controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = false;
+  controls.enableDamping = true;
   controls.dynamicDampingFactor = 0.01;
   controls.enablePan = false;
-  controls.enableZoom = true;
+  controls.enableZoom = false;
   controls.minDistance = 200;
-  controls.maxDistance = 1000;
+  controls.maxDistance = 500;
   controls.rotateSpeed = 0.8;
-  controls.zoomSpeed = 1.0;
+  controls.zoomSpeed = 0;
   controls.autoRotate = false;
   controls.minPolarAngle = Math.PI / 3.5;
   controls.maxPolarAngle = Math.PI - Math.PI / 3;
 
   window.addEventListener("resize", onWindowResize, false);
   window.addEventListener("mousemove", onMouseMove);
-  // Add event listeners for zooming
-  window.addEventListener("keydown", (event) => {
-    if (event.key === "+" || event.key === "=") {
-      // Zoom in
-      camera.position.z -= 40; // Adjust the zoom speed
-      if (camera.position.z < controls.minDistance) {
-        camera.position.z = controls.minDistance;
-      }
-    } else if (event.key === "-" || event.key === "_") {
-      // Zoom out
-      camera.position.z += 40; // Adjust the zoom speed
-      if (camera.position.z > controls.maxDistance) {
-        camera.position.z = controls.maxDistance;
-      }
-    }
-});
 }
 
 function initGlobe() {
@@ -162,9 +138,9 @@ function drawCountryBorders() {
       const borderGeometry = new BufferGeometry().setFromPoints(points);
       const borderMaterial = new LineBasicMaterial({
         color: 0xffffff,
-        linewidth: 0.1,
+        linewidth: 0.01,
         transparent: true,
-        opacity: 0.6,
+        opacity: 0.17,
       });
       const borderLine = new LineLoop(borderGeometry, borderMaterial);
       group.add(borderLine);
@@ -387,28 +363,17 @@ function createButtons() {
 
   // Add event listeners for buttons
   button1.addEventListener("click", () => {
-    stopCurrentAnimation();
-    stopCurrentTypeWriter();
-    Globe.arcsData([]); // Clear existing arcs
     createVerticalButton();
     showShortestPath();
     menuContent.style.display = "none"; // Close menu after click
   });
 
   button2.addEventListener("click", () => {
-    stopCurrentAnimation();
-    stopCurrentTypeWriter();
-    Globe.arcsData([]); // Clear existing arcs
     showInternetCables();
     menuContent.style.display = "none"; // Close menu after click
   });
 
   button3.addEventListener("click", () => {
-    clearDebrisAndOrbits();
-    stopCurrentAnimation();
-    stopCurrentTypeWriter();
-    Globe.arcsData([]); // Clear existing arcs
-    console.log("arcs cleaned");
     showSpaceDebris();
     menuContent.style.display = "none"; // Close menu after click
   });
@@ -425,8 +390,6 @@ function createButtons() {
 }
 
 function showSpaceDebris() {
-  clearDebrisAndOrbits();
-  stopCurrentAnimation(); // Stop any ongoing animation
   createVerticalButton();
   Globe.arcsData([]);
 
@@ -471,7 +434,6 @@ function showSpaceDebris() {
     const debrisGeometry = new SphereGeometry(0.5, 8, 8);
     const debrisMaterial = new MeshBasicMaterial({ color: new Color(orbit.color) }); 
     const debrisMesh = new Mesh(debrisGeometry, debrisMaterial);
-    debrisMesh.userData = { isDebrisOrOrbit: true }; // Mark as debris
 
     // Convert latitude, longitude, and altitude to 3D position
     const position = convertLatLonToXYZ(
@@ -498,7 +460,6 @@ function showSpaceDebris() {
     const orbitMesh = new Mesh(orbitPath, orbitMaterial);
     orbitMesh.rotation.x = Math.PI / 2; // Align the ring with the equator
     orbitMesh.rotation.y = Math.random() * Math.PI * 2; // Randomize orbit orientation
-    orbitMesh.userData = { isDebrisOrOrbit: true }; // Mark as orbit
     globeGroup.add(orbitMesh);
   }
 
@@ -509,14 +470,6 @@ function showSpaceDebris() {
     `;
     typeWriter(explanationText, verticalButton);
   }
-}
-
-function clearDebrisAndOrbits() {
-  // Remove all debris and orbits from the globeGroup
-  globeGroup.children = globeGroup.children.filter((child) => {
-    // Keep objects that are NOT debris or orbits
-    return !child.userData?.isDebrisOrOrbit;
-  });
 }
 
 function showInternetCables() {
@@ -853,10 +806,7 @@ function createVerticalButton() {
   document.body.appendChild(verticalButton);
 }
 
-
-
 function typeWriter(htmlContent, element, speed = 50) {
-  stopCurrentTypeWriter(); // Stop any ongoing typing
   element.innerHTML = ""; 
 
   // Create a temporary container to hold the HTML content
@@ -875,7 +825,7 @@ function typeWriter(htmlContent, element, speed = 50) {
         if (charIndex < node.textContent.length) {
           element.innerHTML += node.textContent.charAt(charIndex);
           charIndex++;
-          currentTypeWriter = setTimeout(type, speed);
+          setTimeout(type, speed);
         } else {
           charIndex = 0;
           index++;
@@ -887,27 +837,10 @@ function typeWriter(htmlContent, element, speed = 50) {
         index++;
         type();
       }
-    } else {
-      currentTypeWriter = null;
     }
   }
 
   type();
-}
-
-
-function stopCurrentAnimation() {
-  if (currentAnimation) {
-    clearTimeout(currentAnimation);
-    currentAnimation = null;
-  }
-}
-
-function stopCurrentTypeWriter() {
-  if (currentTypeWriter) {
-    clearTimeout(currentTypeWriter);
-    currentTypeWriter = null;
-  }
 }
 
 function showShortestPath() {
@@ -1027,13 +960,17 @@ function haversineDistance(point1, point2) {
 }
 
 function visualizePathSequentially(path) {
-  stopCurrentAnimation();
   const arcs = [];
   let currentIndex = 0;
 
   function drawNextArc() {
     if (currentIndex >= path.length - 1) {
-      currentAnimation = null;
+      setTimeout(() => {
+        Globe.arcsData([]);
+        arcs.length = 0;
+        currentIndex = 0;
+        setTimeout(drawNextArc, 2000);
+      }, 2000);
       return;
     }
 
@@ -1058,7 +995,7 @@ function visualizePathSequentially(path) {
       .arcDashAnimateTime(0);
 
     currentIndex++;
-    currentAnimation = setTimeout(drawNextArc, 1000);
+    setTimeout(drawNextArc, 1000);
   }
 
   drawNextArc();
