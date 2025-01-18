@@ -1,5 +1,6 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
+import NodePolyfillPlugin from 'node-polyfill-webpack-plugin'; // Add this line
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -9,7 +10,7 @@ export default {
   output: {
     filename: 'bundle.js',
     path: path.resolve(__dirname, 'dist'),
-    assetModuleFilename: 'assets/[name][ext]', 
+    assetModuleFilename: 'assets/[name][ext]',
   },
   devServer: {
     static: path.resolve(__dirname, 'dist'),
@@ -19,7 +20,7 @@ export default {
   module: {
     rules: [
       {
-        test: /\.js$/, 
+        test: /\.js$/,
         exclude: /node_modules/,
         use: {
           loader: 'babel-loader',
@@ -29,14 +30,20 @@ export default {
         },
       },
       {
-        test: /\.css$/, 
+        test: /\.css$/,
         use: ['style-loader', 'css-loader'],
       },
       {
         test: /\.(mp3|wav)$/,
-        type: 'asset/resource', 
+        type: 'asset/resource',
       },
     ],
   },
+  resolve: {
+    extensions: ['.js'], // Add this to resolve .js files without specifying the extension
+  },
+  plugins: [
+    new NodePolyfillPlugin(), // Add this line to polyfill Node.js modules
+  ],
   mode: 'development',
 };

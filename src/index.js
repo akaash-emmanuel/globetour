@@ -441,89 +441,102 @@ function getAlternateNames(feature) {
 }
 function focusOnCountry(country) {
   const coordinates = calculateCountryCenter(country.geometry);
+
   if (coordinates) {
-    // Stop the globe's rotation
+    // Stop any ongoing globe rotation
     controls.autoRotate = false;
     isGlobeRotating = false;
 
-    // Remove any existing highlights
+    // Remove existing highlights
     globeGroup.children = globeGroup.children.filter(child => !child.isHighlight);
 
-    // Calculate camera position
+    // Extract the longitude and latitude
     const [lon, lat] = coordinates;
-    const phi = (90 - lat) * Math.PI / 180;
-    const theta = (180 - lon) * Math.PI / 180;
-    const distance = 200; // Closer zoom distance
 
-    // Calculate the new camera position
+    // Convert latitude and longitude to spherical coordinates
+    const phi = (90 - lat) * (Math.PI / 180); // Latitude: polar angle
+    const theta = lon * (Math.PI / 180);      // Longitude: azimuthal angle
+
+    // Globe and camera settings
+    const globeRadius = Globe.getGlobeRadius();
+    const fov = camera.fov * (Math.PI / 180); // Camera field of view in radians
+    const targetDistance = globeRadius / Math.sin(fov / 2) * 1.2; // Slight zoom multiplier (1.2)
+
+    // Calculate the camera position to focus on the country
     const newPosition = {
-      x: distance * Math.sin(phi) * Math.cos(theta),
-      y: distance * Math.cos(phi),
-      z: distance * Math.sin(phi) * Math.sin(theta)
+      x: targetDistance * Math.sin(phi) * Math.cos(theta),
+      y: targetDistance * Math.cos(phi),
+      z: targetDistance * Math.sin(phi) * Math.sin(theta),
     };
 
-    // Create highlight effect for the country
-    const position = convertLatLonToXYZ(lat, lon, Globe.getGlobeRadius() + 0.2);
-
-    const highlightGeometry = new SphereGeometry(3, 32, 32);
+    // Add highlight at the country's position
+    const highlightPosition = convertLatLonToXYZ(lat, lon, globeRadius + 1); // Offset highlight slightly above the surface
+    const highlightGeometry = new SphereGeometry(1.5, 32, 32);
     const highlightMaterial = new MeshBasicMaterial({
-      color: 0xffffff,
+      color: 0xff4500,
       transparent: true,
-      opacity: 0.6
+      opacity: 0.7,
     });
     const highlight = new Mesh(highlightGeometry, highlightMaterial);
-    highlight.position.copy(position);
+    highlight.position.copy(highlightPosition);
     highlight.isHighlight = true;
 
-    // Add pulse animation
+    // Add pulsating animation for the highlight
     const pulse = () => {
-      highlightMaterial.opacity = 0.6 * (1 + Math.sin(Date.now() * 0.004));
+      highlightMaterial.opacity = 0.7 + 0.3 * Math.sin(Date.now() * 0.005);
       requestAnimationFrame(pulse);
     };
     pulse();
 
     globeGroup.add(highlight);
 
-    // Scale up the country label
-    globeGroup.children.forEach(child => {
-      if (child instanceof Sprite) {
-        const spriteMaterial = child.material;
-        if (spriteMaterial.map) {
-          const canvas = spriteMaterial.map.image;
-          const context = canvas.getContext('2d');
-          const countryName = country.properties.COUNTRY_NAME || country.properties.name;
+    // Rotate the globe to align the country in view
+    const targetRotation = {
+      x: phi - Math.PI / 2, // Align polar angle
+      y: -theta,            // Align azimuthal angle
+    };
 
-          if (context.canvas.countryName === countryName) {
-            child.scale.set(15, 7.5, 1); // Scale up the label
-          }
-        }
-      }
-    });
-
-    // Rotate the globe to the country's position
-    const targetRotationY = -theta; // Adjust the globe's rotation to face the country
+    // Animate globe rotation and camera movement
     gsap.to(globeGroup.rotation, {
       duration: 2,
-      y: targetRotationY,
-      onUpdate: () => {
-        controls.update(); // Update the controls during rotation
-      },
+      x: targetRotation.x,
+      y: targetRotation.y,
+      ease: "power2.inOut",
+      onUpdate: () => controls.update(),
       onComplete: () => {
-        // Zoom in after rotation is complete
+        // Once rotation is done, animate the zoom-in
         gsap.to(camera.position, {
           duration: 2,
           x: newPosition.x,
           y: newPosition.y,
           z: newPosition.z,
+          ease: "power2.inOut",
           onUpdate: () => {
-            camera.lookAt(scene.position); // Ensure the camera looks at the globe
+            camera.lookAt(new Vector3(0, 0, 0)); // Always focus on the globe center
             controls.update();
-          }
+          },
         });
+      },
+    });
+
+    // Optionally scale up the country's label for better emphasis
+    globeGroup.children.forEach(child => {
+      if (child instanceof Sprite) {
+        const spriteMaterial = child.material;
+        if (spriteMaterial.map) {
+          const canvas = spriteMaterial.map.image;
+          const context = canvas.getContext("2d");
+          const countryName = country.properties.COUNTRY_NAME || country.properties.name;
+
+          if (context.canvas.countryName === countryName) {
+            child.scale.set(15, 10, 1); // Scale up label
+          }
+        }
       }
     });
   }
 }
+
 function calculateCountryCenter(geometry) {
   if (!geometry) return null;
 
@@ -635,7 +648,7 @@ function drawCountryBorders() {
         color: 0xffffff,
         linewidth: 0.1,
         transparent: true,
-        opacity: 0.6,
+        opacity: 0.9,
       });
       const borderLine = new LineLoop(borderGeometry, borderMaterial);
       group.add(borderLine);
