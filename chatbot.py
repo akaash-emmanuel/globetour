@@ -1,12 +1,20 @@
-#chatbot.py 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from openai import OpenAI
 import json
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
+# Initialize OpenAI client with API key from .env
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY")  # Load API key from .env
+)
 
 @app.route('/chat', methods=['POST', 'OPTIONS'])
 def chat():
