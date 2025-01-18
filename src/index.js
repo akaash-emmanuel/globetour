@@ -112,7 +112,7 @@ function initializePermanentChatbot() {
   chatbotInterface.style.bottom = "20px";
   chatbotInterface.style.left = "20px";
   chatbotInterface.style.width = "300px";
-  chatbotInterface.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
+  chatbotInterface.style.backgroundColor = "rgba(49, 47, 47, 0.8)";
   chatbotInterface.style.borderRadius = "10px";
   chatbotInterface.style.padding = "20px";
   chatbotInterface.style.zIndex = "1000";
@@ -123,7 +123,7 @@ function initializePermanentChatbot() {
   headerDiv.style.display = "flex";
   headerDiv.style.justifyContent = "space-between";
   headerDiv.style.alignItems = "center";
-  headerDiv.style.marginBottom = "15px";
+  headerDiv.style.marginBottom = "30px";
 
   const title = document.createElement("span");
   title.textContent = "International Affairs Chatbot";
@@ -679,7 +679,7 @@ function addStars() {
   const starGeometry = new SphereGeometry(1.3, 24, 24);
   const colors = [0x0000ff, 0xff0000, 0xffff00, 0xffffff, 0x00ff00];
 
-  for (let i = 0; i < 2000; i++) {
+  for (let i = 0; i < 20000; i++) {
     const starColor = colors[Math.floor(Math.random() * colors.length)];
     const starMaterial = new MeshBasicMaterial({ color: starColor });
     const star = new Mesh(starGeometry, starMaterial);

@@ -7,6 +7,7 @@ import json
 app = Flask(__name__)
 CORS(app)
 
+
 @app.route('/chat', methods=['POST', 'OPTIONS'])
 def chat():
     # Handle CORS preflight request
@@ -43,7 +44,7 @@ def chat():
                     2. Economic partnerships and trade
                     3. Historical context and key events, including wars and changes that happened because of it
                     4. Current challenges and opportunities
-                    Please provide factual, up-to-date information."""}
+                    Please provide factual, up-to-date information, and keep it under 500 words"""}
             ],
             temperature=0.7,
             max_tokens=500
