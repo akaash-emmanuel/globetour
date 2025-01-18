@@ -1,5 +1,5 @@
 import ThreeGlobe from "three-globe";
-import { WebGLRenderer, Scene, PerspectiveCamera, AmbientLight, DirectionalLight, MeshBasicMaterial, Mesh, Color, Fog, PointLight, Group, Vector3, Vector2, BufferGeometry, SphereGeometry, CanvasTexture, SpriteMaterial, Sprite, CylinderGeometry, LineLoop, LineBasicMaterial, Raycaster, RingGeometry, DoubleSide } from "three";
+import { WebGLRenderer, Scene, PerspectiveCamera, AmbientLight, DirectionalLight, MeshBasicMaterial, Mesh, Color, Fog, PointLight, Group, Vector3, BufferGeometry, SphereGeometry, CanvasTexture, SpriteMaterial, Sprite, CylinderGeometry, LineLoop, LineBasicMaterial, Raycaster, RingGeometry, DoubleSide } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import countries from "./assets/Updated Globe Data.json";
 import spaceMusic from "./assets/spacemusic.mp3";
@@ -23,7 +23,6 @@ let currentTypeWriter = null;
 let mouseX = 0;
 let mouseY = 0;
 let isGlobeRotating = true;
-
 
 
 init();
@@ -192,7 +191,193 @@ function initializePermanentChatbot() {
   headerDiv.addEventListener("mousedown", dragStart);
   document.addEventListener("mousemove", drag);
   document.addEventListener("mouseup", dragEnd);
+// Improved code for the initializePermanentChatbot function
+function initializePermanentChatbot() {
+  const chatbotInterface = document.createElement("div");
+  chatbotInterface.classList.add("chatbot-interface");
+  chatbotInterface.style.position = "absolute";
+  chatbotInterface.style.bottom = "20px";
+  chatbotInterface.style.left = "20px";
+  chatbotInterface.style.width = "300px";
+  chatbotInterface.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
+  chatbotInterface.style.borderRadius = "10px";
+  chatbotInterface.style.padding = "20px";
+  chatbotInterface.style.zIndex = "1000";
 
+  // Add minimize/maximize functionality
+  const headerDiv = document.createElement("div");
+  headerDiv.style.display = "flex";
+  headerDiv.style.justifyContent = "space-between";
+  headerDiv.style.alignItems = "center";
+  headerDiv.style.marginBottom = "15px";
+
+  const title = document.createElement("span");
+  title.textContent = "International Affairs Chatbot";
+  title.style.color = "#ffffff";
+  title.style.fontSize = "14px";
+  title.style.fontWeight = "bold";
+
+  const minimizeBtn = document.createElement("button");
+  minimizeBtn.innerHTML = "−";
+  minimizeBtn.style.background = "none";
+  minimizeBtn.style.border = "none";
+  minimizeBtn.style.color = "#ffffff";
+  minimizeBtn.style.fontSize = "20px";
+  minimizeBtn.style.cursor = "pointer";
+  minimizeBtn.style.padding = "0 5px";
+
+  headerDiv.appendChild(title);
+  headerDiv.appendChild(minimizeBtn);
+
+  const contentDiv = document.createElement("div");
+  contentDiv.innerHTML = `
+    <p style="color: #ffffff; margin-bottom: 20px; font-size: 14px;">
+      Hello, I am the International Affairs Chatbot, ready to answer all your questions! 
+      Just select any two countries, and I will tell you about their geopolitical affairs.
+    </p>
+    <input type="text" placeholder="Enter first country" 
+      style="width: 100%; padding: 8px; margin-bottom: 10px; background-color: rgba(255, 255, 255, 0.1); 
+      border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; color: #ffffff;">
+    <input type="text" placeholder="Enter second country" 
+      style="width: 100%; padding: 8px; margin-bottom: 10px; background-color: rgba(255, 255, 255, 0.1); 
+      border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; color: #ffffff;">
+    <button id="submitCountries" style="width: 100%; padding: 8px; background-color: #0c529c; 
+      border: none; border-radius: 5px; color: #ffffff; cursor: pointer;">
+      Get Analysis
+    </button>
+    <div id="analysisResult" style="color: #ffffff; margin-top: 15px; font-size: 14px; 
+      max-height: 150px; overflow-y: auto;">
+    </div>
+  `;
+
+  chatbotInterface.appendChild(headerDiv);
+  chatbotInterface.appendChild(contentDiv);
+
+  // Add minimize/maximize functionality
+  let isMinimized = false;
+  minimizeBtn.addEventListener("click", () => {
+    if (isMinimized) {
+      contentDiv.style.display = "block";
+      minimizeBtn.innerHTML = "−";
+      chatbotInterface.style.height = "auto";
+    } else {
+      contentDiv.style.display = "none";
+      minimizeBtn.innerHTML = "+";
+      chatbotInterface.style.height = "auto";
+    }
+    isMinimized = !isMinimized;
+  });
+
+  // Make chatbot draggable
+  let isDragging = false;
+  let currentX;
+  let currentY;
+  let initialX;
+  let initialY;
+
+  headerDiv.addEventListener("mousedown", dragStart);
+  document.addEventListener("mousemove", drag);
+  document.addEventListener("mouseup", dragEnd);
+
+  function dragStart(e) {
+    initialX = e.clientX - chatbotInterface.offsetLeft;
+    initialY = e.clientY - chatbotInterface.offsetTop;
+    if (e.target === headerDiv || e.target === title) {
+      isDragging = true;
+    }
+  }
+
+  function drag(e) {
+    if (isDragging) {
+      e.preventDefault();
+      currentX = e.clientX - initialX;
+      currentY = e.clientY - initialY;
+
+      // Keep chatbot within window bounds
+      const maxX = window.innerWidth - chatbotInterface.offsetWidth;
+      const maxY = window.innerHeight - chatbotInterface.offsetHeight;
+
+      currentX = Math.min(Math.max(0, currentX), maxX);
+      currentY = Math.min(Math.max(0, currentY), maxY);
+
+      chatbotInterface.style.left = currentX + "px";
+      chatbotInterface.style.top = currentY + "px";
+    }
+  }
+
+  function dragEnd() {
+    initialX = currentX;
+    initialY = currentY;
+    isDragging = false;
+  }
+
+  // Add loading indicator
+  const loadingIndicator = document.createElement('div');
+  loadingIndicator.innerHTML = 'Analyzing...';
+  loadingIndicator.style.color = '#ffffff';
+  loadingIndicator.style.textAlign = 'center';
+  loadingIndicator.style.marginTop = '10px';
+  loadingIndicator.style.display = 'none';
+  contentDiv.insertBefore(loadingIndicator, contentDiv.querySelector('#analysisResult'));
+
+  const submitButton = contentDiv.querySelector('#submitCountries');
+  const country1Input = contentDiv.querySelector('input:first-of-type');
+  const country2Input = contentDiv.querySelector('input:last-of-type');
+  const analysisResult = contentDiv.querySelector('#analysisResult');
+
+  submitButton.addEventListener('click', async () => {
+    const country1 = country1Input.value.trim();
+    const country2 = country2Input.value.trim();
+
+    if (!country1 || !country2) {
+      analysisResult.innerHTML = "Please enter both countries.";
+      return;
+    }
+
+    loadingIndicator.style.display = "block";
+    analysisResult.innerHTML = "";
+
+    try {
+      const response = await fetch('http://127.0.0.1:5002/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          country1: country1,
+          country2: country2
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      analysisResult.innerHTML = data.response
+        .split('\n')
+        .map(line => `<p style="margin-bottom: 8px;">${line}</p>`)
+        .join('');
+
+    } catch (error) {
+      analysisResult.innerHTML = "An error occurred while analyzing the relationship. Please try again.";
+    } finally {
+      loadingIndicator.style.display = "none";
+    }
+  });
+
+  // Add Enter key support for inputs
+  [country1Input, country2Input].forEach(input => {
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        submitButton.click();
+      }
+    });
+  });
+
+  document.body.appendChild(chatbotInterface);
+}
   function dragStart(e) {
     initialX = e.clientX - chatbotInterface.offsetLeft;
     initialY = e.clientY - chatbotInterface.offsetTop;
@@ -833,7 +1018,7 @@ function createButtons() {
   menuContent.style.zIndex = "1000";
   document.body.appendChild(menuContent);
 
-  // Create Button 1 (Shortest Path)
+  // Create Button 1
   const button1 = document.createElement("button");
   button1.innerText = "Shortest Path";
   button1.style.padding = "10px 20px";
@@ -845,7 +1030,7 @@ function createButtons() {
   button1.style.cursor = "pointer";
   menuContent.appendChild(button1);
 
-  // Create Button 2 (Internet Cables)
+  // Create Button 2
   const button2 = document.createElement("button");
   button2.innerText = "Internet Cables";
   button2.style.padding = "10px 20px";
@@ -869,19 +1054,8 @@ function createButtons() {
   button3.style.cursor = "pointer";
   menuContent.appendChild(button3);
 
-  // Create Button 4 (Earthquake Data) - NEW BUTTON
-  const earthquakeButton = document.createElement("button");
-  earthquakeButton.innerText = "Earthquake Data";
-  earthquakeButton.style.padding = "10px 20px";
-  earthquakeButton.style.fontSize = "16px";
-  earthquakeButton.style.backgroundColor = "#0c529c";
-  earthquakeButton.style.color = "#ffffff";
-  earthquakeButton.style.border = "none";
-  earthquakeButton.style.borderRadius = "5px";
-  earthquakeButton.style.cursor = "pointer";
-  menuContent.appendChild(earthquakeButton);
 
-  // Create Reset Button (keep at the end)
+  // Create Reset Button
   const resetButton = document.createElement("button");
   resetButton.innerText = "Reset";
   resetButton.style.padding = "10px 20px";
@@ -917,16 +1091,6 @@ function createButtons() {
     stopCurrentTypeWriter();
     Globe.arcsData([]); // Clear existing arcs
     showSpaceDebris();
-    menuContent.style.display = "none"; // Close menu after click
-  });
-
-  // Add event listener for Earthquake Button
-  earthquakeButton.addEventListener("click", () => {
-    stopCurrentAnimation();
-    stopCurrentTypeWriter();
-    Globe.arcsData([]); // Clear existing arcs
-    clearDebrisAndOrbits(); // Clear any existing visualizations
-    addEarthquakeVisualization(); // Add the new earthquake visualization
     menuContent.style.display = "none"; // Close menu after click
   });
 
@@ -1517,19 +1681,21 @@ function createVerticalButton() {
   document.body.appendChild(verticalButton);
 }
 function typeWriter(htmlContent, element, speed = 50) {
-  if (!element) return; // Guard clause to prevent errors
+  stopCurrentTypeWriter(); // Stop any ongoing typing
+  element.innerHTML = "";
 
-  element.innerHTML = ''; // Clear existing content
-  const tempDiv = document.createElement('div');
+  // Create a temporary container to hold the HTML content
+  const tempDiv = document.createElement("div");
   tempDiv.innerHTML = htmlContent;
-  const nodes = tempDiv.childNodes;
+  const nodes = tempDiv.childNodes; // Get all child nodes of the HTML content
 
-  let index = 0;
-  let charIndex = 0;
+  let index = 0; // Tracks the current node being typed
+  let charIndex = 0; // Tracks the current character within a text node
 
   function type() {
     if (index < nodes.length) {
       const node = nodes[index];
+
       if (node.nodeType === Node.TEXT_NODE) {
         if (charIndex < node.textContent.length) {
           element.innerHTML += node.textContent.charAt(charIndex);
@@ -1546,6 +1712,8 @@ function typeWriter(htmlContent, element, speed = 50) {
         index++;
         type();
       }
+    } else {
+      currentTypeWriter = null;
     }
   }
 
