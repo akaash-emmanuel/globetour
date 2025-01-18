@@ -15734,7 +15734,7 @@
         "MIN_ZOOM": 0,
         "MIN_LABEL": 6,
         "MAX_LABEL": 10,
-        "COUNTRY_NAME": null
+        "COUNTRY_NAME": "s"
       },
       "bbox": [
         32.73178,
@@ -18471,7 +18471,7 @@
         "MIN_ZOOM": 0,
         "MIN_LABEL": 1.7,
         "MAX_LABEL": 6.7,
-        "COUNTRY_NAME": null
+        "COUNTRY_NAME": "Canary Islands"
       },
       "bbox": [
         -54.524754,
@@ -32132,7 +32132,7 @@
         "MIN_ZOOM": 0,
         "MIN_LABEL": 3,
         "MAX_LABEL": 7,
-        "COUNTRY_NAME": null
+        "COUNTRY_NAME": "Norway"
       },
       "bbox": [
         4.992078,

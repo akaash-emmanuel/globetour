@@ -3,10 +3,12 @@ import { WebGLRenderer, Scene, PerspectiveCamera, AmbientLight, DirectionalLight
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import countries from "./assets/Updated Globe Data.json";
 import spaceMusic from "./assets/spacemusic.mp3";
+import gsap from 'gsap';
+
 
 // MediaPipe Hands setup
-import { Hands, HAND_CONNECTIONS } from "@mediapipe/hands";
-import { Camera } from "@mediapipe/camera_utils";
+// import { Hands, HAND_CONNECTIONS } from "@mediapipe/hands";
+// import { Camera } from "@mediapipe/camera_utils";
 
 
 let renderer, camera, scene, controls;
@@ -20,6 +22,7 @@ let currentAnimation = null;
 let currentTypeWriter = null;
 let mouseX = 0;
 let mouseY = 0;
+let isGlobeRotating = true;
 
 
 init();
@@ -32,6 +35,8 @@ prepareAmbientMusic();
 onWindowResize();
 animate();
 createButtons();
+initializePermanentChatbot();
+// rotateGlobeToCountry();
 
 function init() {
   renderer = new WebGLRenderer({ antialias: true });
@@ -72,7 +77,7 @@ function init() {
   controls.dynamicDampingFactor = 0.01;
   controls.enablePan = false;
   controls.enableZoom = true;
-  controls.minDistance = 200;
+  controls.minDistance = 115;
   controls.maxDistance = 1000;
   controls.rotateSpeed = 0.8;
   controls.zoomSpeed = 1.0;
@@ -97,7 +102,661 @@ function init() {
         camera.position.z = controls.maxDistance;
       }
     }
-});
+  });
+  addSearchFeature();
+}
+
+//chatbot initialisation
+function initializePermanentChatbot() {
+  const chatbotInterface = document.createElement("div");
+  chatbotInterface.style.position = "absolute";
+  chatbotInterface.style.bottom = "20px";
+  chatbotInterface.style.left = "20px";
+  chatbotInterface.style.width = "300px";
+  chatbotInterface.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
+  chatbotInterface.style.borderRadius = "10px";
+  chatbotInterface.style.padding = "20px";
+  chatbotInterface.style.zIndex = "1000";
+  chatbotInterface.classList.add("chatbot-interface");
+
+  // Add minimize/maximize functionality
+  const headerDiv = document.createElement("div");
+  headerDiv.style.display = "flex";
+  headerDiv.style.justifyContent = "space-between";
+  headerDiv.style.alignItems = "center";
+  headerDiv.style.marginBottom = "15px";
+
+  const title = document.createElement("span");
+  title.textContent = "International Affairs Chatbot";
+  title.style.color = "#ffffff";
+  title.style.fontSize = "14px";
+  title.style.fontWeight = "bold";
+
+  const minimizeBtn = document.createElement("button");
+  minimizeBtn.innerHTML = "−";
+  minimizeBtn.style.background = "none";
+  minimizeBtn.style.border = "none";
+  minimizeBtn.style.color = "#ffffff";
+  minimizeBtn.style.fontSize = "20px";
+  minimizeBtn.style.cursor = "pointer";
+  minimizeBtn.style.padding = "0 5px";
+
+  headerDiv.appendChild(title);
+  headerDiv.appendChild(minimizeBtn);
+
+  const contentDiv = document.createElement("div");
+  contentDiv.innerHTML = `
+      <p style="color: #ffffff; margin-bottom: 20px; font-size: 14px;">
+          Hello, I am the International Affairs Chatbot, ready to answer all your questions! 
+          Just select any two countries, and I will tell you about their geopolitical affairs.
+      </p>
+      <input type="text" placeholder="Enter first country" 
+          style="width: 100%; padding: 8px; margin-bottom: 10px; background-color: rgba(255, 255, 255, 0.1); 
+          border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; color: #ffffff;">
+      <input type="text" placeholder="Enter second country" 
+          style="width: 100%; padding: 8px; margin-bottom: 10px; background-color: rgba(255, 255, 255, 0.1); 
+          border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; color: #ffffff;">
+      <button id="submitCountries" style="width: 100%; padding: 8px; background-color: #0c529c; 
+          border: none; border-radius: 5px; color: #ffffff; cursor: pointer;">
+          Get Analysis
+      </button>
+      <div id="analysisResult" style="color: #ffffff; margin-top: 15px; font-size: 14px; 
+          max-height: 150px; overflow-y: auto;">
+      </div>
+  `;
+
+  chatbotInterface.appendChild(headerDiv);
+  chatbotInterface.appendChild(contentDiv);
+
+  // Add minimize/maximize functionality
+  let isMinimized = false;
+  minimizeBtn.addEventListener("click", () => {
+    if (isMinimized) {
+      contentDiv.style.display = "block";
+      minimizeBtn.innerHTML = "−";
+      chatbotInterface.style.height = "auto";
+    } else {
+      contentDiv.style.display = "none";
+      minimizeBtn.innerHTML = "+";
+      chatbotInterface.style.height = "auto";
+    }
+    isMinimized = !isMinimized;
+  });
+
+  // Make chatbot draggable
+  let isDragging = false;
+  let currentX;
+  let currentY;
+  let initialX;
+  let initialY;
+
+  headerDiv.addEventListener("mousedown", dragStart);
+  document.addEventListener("mousemove", drag);
+  document.addEventListener("mouseup", dragEnd);
+// Improved code for the initializePermanentChatbot function
+function initializePermanentChatbot() {
+  const chatbotInterface = document.createElement("div");
+  chatbotInterface.classList.add("chatbot-interface");
+  chatbotInterface.style.position = "absolute";
+  chatbotInterface.style.bottom = "20px";
+  chatbotInterface.style.left = "20px";
+  chatbotInterface.style.width = "300px";
+  chatbotInterface.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
+  chatbotInterface.style.borderRadius = "10px";
+  chatbotInterface.style.padding = "20px";
+  chatbotInterface.style.zIndex = "1000";
+
+  // Add minimize/maximize functionality
+  const headerDiv = document.createElement("div");
+  headerDiv.style.display = "flex";
+  headerDiv.style.justifyContent = "space-between";
+  headerDiv.style.alignItems = "center";
+  headerDiv.style.marginBottom = "15px";
+
+  const title = document.createElement("span");
+  title.textContent = "International Affairs Chatbot";
+  title.style.color = "#ffffff";
+  title.style.fontSize = "14px";
+  title.style.fontWeight = "bold";
+
+  const minimizeBtn = document.createElement("button");
+  minimizeBtn.innerHTML = "−";
+  minimizeBtn.style.background = "none";
+  minimizeBtn.style.border = "none";
+  minimizeBtn.style.color = "#ffffff";
+  minimizeBtn.style.fontSize = "20px";
+  minimizeBtn.style.cursor = "pointer";
+  minimizeBtn.style.padding = "0 5px";
+
+  headerDiv.appendChild(title);
+  headerDiv.appendChild(minimizeBtn);
+
+  const contentDiv = document.createElement("div");
+  contentDiv.innerHTML = `
+    <p style="color: #ffffff; margin-bottom: 20px; font-size: 14px;">
+      Hello, I am the International Affairs Chatbot, ready to answer all your questions! 
+      Just select any two countries, and I will tell you about their geopolitical affairs.
+    </p>
+    <input type="text" placeholder="Enter first country" 
+      style="width: 100%; padding: 8px; margin-bottom: 10px; background-color: rgba(255, 255, 255, 0.1); 
+      border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; color: #ffffff;">
+    <input type="text" placeholder="Enter second country" 
+      style="width: 100%; padding: 8px; margin-bottom: 10px; background-color: rgba(255, 255, 255, 0.1); 
+      border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; color: #ffffff;">
+    <button id="submitCountries" style="width: 100%; padding: 8px; background-color: #0c529c; 
+      border: none; border-radius: 5px; color: #ffffff; cursor: pointer;">
+      Get Analysis
+    </button>
+    <div id="analysisResult" style="color: #ffffff; margin-top: 15px; font-size: 14px; 
+      max-height: 150px; overflow-y: auto;">
+    </div>
+  `;
+
+  chatbotInterface.appendChild(headerDiv);
+  chatbotInterface.appendChild(contentDiv);
+
+  // Add minimize/maximize functionality
+  let isMinimized = false;
+  minimizeBtn.addEventListener("click", () => {
+    if (isMinimized) {
+      contentDiv.style.display = "block";
+      minimizeBtn.innerHTML = "−";
+      chatbotInterface.style.height = "auto";
+    } else {
+      contentDiv.style.display = "none";
+      minimizeBtn.innerHTML = "+";
+      chatbotInterface.style.height = "auto";
+    }
+    isMinimized = !isMinimized;
+  });
+
+  // Make chatbot draggable
+  let isDragging = false;
+  let currentX;
+  let currentY;
+  let initialX;
+  let initialY;
+
+  headerDiv.addEventListener("mousedown", dragStart);
+  document.addEventListener("mousemove", drag);
+  document.addEventListener("mouseup", dragEnd);
+
+  function dragStart(e) {
+    initialX = e.clientX - chatbotInterface.offsetLeft;
+    initialY = e.clientY - chatbotInterface.offsetTop;
+    if (e.target === headerDiv || e.target === title) {
+      isDragging = true;
+    }
+  }
+
+  function drag(e) {
+    if (isDragging) {
+      e.preventDefault();
+      currentX = e.clientX - initialX;
+      currentY = e.clientY - initialY;
+
+      // Keep chatbot within window bounds
+      const maxX = window.innerWidth - chatbotInterface.offsetWidth;
+      const maxY = window.innerHeight - chatbotInterface.offsetHeight;
+
+      currentX = Math.min(Math.max(0, currentX), maxX);
+      currentY = Math.min(Math.max(0, currentY), maxY);
+
+      chatbotInterface.style.left = currentX + "px";
+      chatbotInterface.style.top = currentY + "px";
+    }
+  }
+
+  function dragEnd() {
+    initialX = currentX;
+    initialY = currentY;
+    isDragging = false;
+  }
+
+  // Add loading indicator
+  const loadingIndicator = document.createElement('div');
+  loadingIndicator.innerHTML = 'Analyzing...';
+  loadingIndicator.style.color = '#ffffff';
+  loadingIndicator.style.textAlign = 'center';
+  loadingIndicator.style.marginTop = '10px';
+  loadingIndicator.style.display = 'none';
+  contentDiv.insertBefore(loadingIndicator, contentDiv.querySelector('#analysisResult'));
+
+  const submitButton = contentDiv.querySelector('#submitCountries');
+  const country1Input = contentDiv.querySelector('input:first-of-type');
+  const country2Input = contentDiv.querySelector('input:last-of-type');
+  const analysisResult = contentDiv.querySelector('#analysisResult');
+
+  submitButton.addEventListener('click', async () => {
+    const country1 = country1Input.value.trim();
+    const country2 = country2Input.value.trim();
+
+    if (!country1 || !country2) {
+      analysisResult.innerHTML = "Please enter both countries.";
+      return;
+    }
+
+    loadingIndicator.style.display = "block";
+    analysisResult.innerHTML = "";
+
+    try {
+      const response = await fetch('http://127.0.0.1:5002/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          country1: country1,
+          country2: country2
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      analysisResult.innerHTML = data.response
+        .split('\n')
+        .map(line => `<p style="margin-bottom: 8px;">${line}</p>`)
+        .join('');
+
+    } catch (error) {
+      analysisResult.innerHTML = "An error occurred while analyzing the relationship. Please try again.";
+    } finally {
+      loadingIndicator.style.display = "none";
+    }
+  });
+
+  // Add Enter key support for inputs
+  [country1Input, country2Input].forEach(input => {
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        submitButton.click();
+      }
+    });
+  });
+
+  document.body.appendChild(chatbotInterface);
+}
+  function dragStart(e) {
+    initialX = e.clientX - chatbotInterface.offsetLeft;
+    initialY = e.clientY - chatbotInterface.offsetTop;
+    if (e.target === headerDiv || e.target === title) {
+      isDragging = true;
+    }
+  }
+
+  function drag(e) {
+    if (isDragging) {
+      e.preventDefault();
+      currentX = e.clientX - initialX;
+      currentY = e.clientY - initialY;
+
+      // Keep chatbot within window bounds
+      const maxX = window.innerWidth - chatbotInterface.offsetWidth;
+      const maxY = window.innerHeight - chatbotInterface.offsetHeight;
+
+      currentX = Math.min(Math.max(0, currentX), maxX);
+      currentY = Math.min(Math.max(0, currentY), maxY);
+
+      chatbotInterface.style.left = currentX + "px";
+      chatbotInterface.style.top = currentY + "px";
+    }
+  }
+
+  function dragEnd() {
+    initialX = currentX;
+    initialY = currentY;
+    isDragging = false;
+  }
+
+  // ADD THE NEW CODE HERE
+  const submitButton = contentDiv.querySelector('#submitCountries');
+  const country1Input = contentDiv.querySelector('input:first-of-type');
+  const country2Input = contentDiv.querySelector('input:last-of-type');
+  const analysisResult = contentDiv.querySelector('#analysisResult');
+
+  // Add loading indicator
+  const loadingIndicator = document.createElement('div');
+  loadingIndicator.innerHTML = 'Analyzing...';
+  loadingIndicator.style.color = '#ffffff';
+  loadingIndicator.style.textAlign = 'center';
+  loadingIndicator.style.marginTop = '10px';
+  loadingIndicator.style.display = 'none';
+  contentDiv.insertBefore(loadingIndicator, analysisResult);
+
+  submitButton.addEventListener('click', async () => {
+    const country1 = country1Input.value.trim();
+    const country2 = country2Input.value.trim();
+
+    if (!country1 || !country2) {
+      analysisResult.innerHTML = "Please enter both countries.";
+      return;
+    }
+
+    loadingIndicator.style.display = "block";
+    analysisResult.innerHTML = "";
+
+    try {
+      const response = await fetch('http://127.0.0.1:5002/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          country1: country1,
+          country2: country2
+        })
+      });
+
+
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      analysisResult.innerHTML = data.response
+        .split('\n')
+        .map(line => `<p style="margin-bottom: 8px;">${line}</p>`)
+        .join('');
+
+    } catch (error) {
+      analysisResult.innerHTML = "An error occurred while analyzing the relationship. Please try again.";
+    } finally {
+      loadingIndicator.style.display = "none";
+    }
+  });
+
+  // Add Enter key support for inputs
+  [country1Input, country2Input].forEach(input => {
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        submitButton.click();
+      }
+    });
+  });
+
+  document.body.appendChild(chatbotInterface);
+}
+
+function addSearchFeature() {
+  // Create search container
+  const searchContainer = document.createElement("div");
+  searchContainer.style.position = "absolute";
+  searchContainer.style.top = "20px";
+  searchContainer.style.right = "20px";
+  searchContainer.style.zIndex = "1000";
+  searchContainer.style.display = "flex";
+  searchContainer.style.alignItems = "center";
+
+  // Create search input
+  const searchInput = document.createElement("input");
+  searchInput.type = "text";
+  searchInput.placeholder = "Search countries...";
+  searchInput.style.padding = "10px 20px";
+  searchInput.style.width = "180px";
+  searchInput.style.borderRadius = "25px";
+  searchInput.style.border = "none";
+  searchInput.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
+  searchInput.style.color = "#ffffff";
+  searchInput.style.fontSize = "16px";
+  searchInput.style.outline = "none";
+
+  // Create loading indicator
+  const loadingIndicator = document.createElement("div");
+  loadingIndicator.style.display = "none";
+  loadingIndicator.style.marginLeft = "10px";
+  loadingIndicator.style.color = "#ffffff";
+  loadingIndicator.innerHTML = "Searching...";
+
+  // Add elements to container
+  searchContainer.appendChild(searchInput);
+  searchContainer.appendChild(loadingIndicator);
+  document.body.appendChild(searchContainer);
+
+  // Add search functionality
+  searchInput.addEventListener("keypress", (event) => {
+    if (event.key === "Enter") {
+      const searchTerm = searchInput.value.trim().toLowerCase(); // Normalize search term
+
+      if (!searchTerm) {
+        return;
+      }
+
+      loadingIndicator.style.display = "block";
+
+      // Search through countries
+      const country = countries.features.find(feature => {
+        if (!feature.properties) return false;
+
+        // Normalize country names for comparison
+        const countryName = (feature.properties.COUNTRY_NAME || feature.properties.name || "").toLowerCase();
+        const alternateNames = getAlternateNames(feature); // Get alternate names for the country
+
+        // Check if the search term matches the country name or any alternate names
+        return (
+          countryName.includes(searchTerm) ||
+          alternateNames.some(name => name.includes(searchTerm))
+        );
+      });
+
+      if (country) {
+        // Add subtle highlight effect to search box
+        searchInput.style.backgroundColor = "rgba(0, 255, 0, 0.1)";
+        setTimeout(() => {
+          searchInput.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
+        }, 500);
+
+        // Call focusOnCountry with the found country
+        focusOnCountry(country);
+      } else {
+        // Show error effect
+        searchInput.style.backgroundColor = "rgba(255, 0, 0, 0.1)";
+        setTimeout(() => {
+          searchInput.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
+        }, 500);
+
+        console.log("Country not found:", searchTerm);
+      }
+
+      loadingIndicator.style.display = "none";
+    }
+  });
+
+  // Add clear button functionality
+  searchInput.addEventListener("input", () => {
+    if (searchInput.value === "") {
+      // Reset globe to default position
+      gsap.to(camera.position, {
+        duration: 2,
+        x: 0,
+        y: 0,
+        z: 400,
+        onUpdate: () => {
+          camera.lookAt(scene.position);
+          controls.update();
+        }
+      });
+    }
+  });
+
+  // Add hover effect
+  searchInput.addEventListener("mouseover", () => {
+    searchInput.style.backgroundColor = "rgba(255, 255, 255, 0.15)";
+  });
+
+  searchInput.addEventListener("mouseout", () => {
+    if (document.activeElement !== searchInput) {
+      searchInput.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
+    }
+  });
+
+  // Add focus effect
+  searchInput.addEventListener("focus", () => {
+    searchInput.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
+    searchInput.style.boxShadow = "0 0 10px rgba(255, 255, 255, 0.1)";
+  });
+
+  searchInput.addEventListener("blur", () => {
+    searchInput.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
+    searchInput.style.boxShadow = "none";
+  });
+}
+
+// Helper function to get alternate names for a country
+function getAlternateNames(feature) {
+  const alternateNames = [];
+
+  // Add common alternate names for specific countries
+  switch (feature.properties.COUNTRY_NAME || feature.properties.name) {
+    case "United States":
+      alternateNames.push("usa", "united states of america", "us");
+      break;
+    case "United Kingdom":
+      alternateNames.push("uk", "great britain", "britain");
+      break;
+    case "Russia":
+      alternateNames.push("russian federation");
+      break;
+    case "China":
+      alternateNames.push("peoples republic of china", "prc");
+      break;
+    // Add more cases as needed
+  }
+
+  return alternateNames.map(name => name.toLowerCase());
+}
+
+function focusOnCountry(country) {
+  const coordinates = calculateCountryCenter(country.geometry);
+  if (coordinates) {
+    // Stop the globe's rotation
+    controls.autoRotate = false;
+    isGlobeRotating = false;
+
+    // Remove any existing highlights
+    globeGroup.children = globeGroup.children.filter(child => !child.isHighlight);
+
+    // Calculate camera position
+    const [lon, lat] = coordinates;
+    const phi = (90 - lat) * Math.PI / 180;
+    const theta = (180 - lon) * Math.PI / 180;
+    const distance = 200; // Closer zoom distance
+
+    // Calculate the new camera position
+    const newPosition = {
+      x: distance * Math.sin(phi) * Math.cos(theta),
+      y: distance * Math.cos(phi),
+      z: distance * Math.sin(phi) * Math.sin(theta)
+    };
+
+    // Create highlight effect for the country
+    const position = convertLatLonToXYZ(lat, lon, Globe.getGlobeRadius() + 0.2);
+
+    const highlightGeometry = new SphereGeometry(3, 32, 32);
+    const highlightMaterial = new MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.6
+    });
+    const highlight = new Mesh(highlightGeometry, highlightMaterial);
+    highlight.position.copy(position);
+    highlight.isHighlight = true;
+
+    // Add pulse animation
+    const pulse = () => {
+      highlightMaterial.opacity = 0.6 * (1 + Math.sin(Date.now() * 0.004));
+      requestAnimationFrame(pulse);
+    };
+    pulse();
+
+    globeGroup.add(highlight);
+
+    // Scale up the country label
+    globeGroup.children.forEach(child => {
+      if (child instanceof Sprite) {
+        const spriteMaterial = child.material;
+        if (spriteMaterial.map) {
+          const canvas = spriteMaterial.map.image;
+          const context = canvas.getContext('2d');
+          const countryName = country.properties.COUNTRY_NAME || country.properties.name;
+
+          if (context.canvas.countryName === countryName) {
+            child.scale.set(15, 7.5, 1); // Scale up the label
+          }
+        }
+      }
+    });
+
+    // Rotate the globe to the country's position
+    const targetRotationY = -theta; // Adjust the globe's rotation to face the country
+    gsap.to(globeGroup.rotation, {
+      duration: 2,
+      y: targetRotationY,
+      onUpdate: () => {
+        controls.update(); // Update the controls during rotation
+      },
+      onComplete: () => {
+        // Zoom in after rotation is complete
+        gsap.to(camera.position, {
+          duration: 2,
+          x: newPosition.x,
+          y: newPosition.y,
+          z: newPosition.z,
+          onUpdate: () => {
+            camera.lookAt(scene.position); // Ensure the camera looks at the globe
+            controls.update();
+          }
+        });
+      }
+    });
+  }
+}
+
+function calculateCountryCenter(geometry) {
+  if (!geometry) return null;
+
+  let totalLat = 0, totalLon = 0, count = 0;
+
+  const processCoordinates = (coords) => {
+    coords.forEach(coord => {
+      const [lon, lat] = coord;
+      totalLon += lon;
+      totalLat += lat;
+      count++;
+    });
+  };
+
+  if (geometry.type === "Polygon") {
+    geometry.coordinates[0].forEach(coord => processCoordinates([coord]));
+  } else if (geometry.type === "MultiPolygon") {
+    geometry.coordinates.forEach(polygon => {
+      polygon[0].forEach(coord => processCoordinates([coord]));
+    });
+  }
+
+  return count > 0 ? [totalLon / count, totalLat / count] : null;
+}
+
+function rotateGlobeToCountry(coordinates) {
+  const [lon, lat] = coordinates;
+  const phi = (90 - lat) * Math.PI / 180;
+  const theta = (180 - lon) * Math.PI / 180;
+
+  const distance = camera.position.length();
+
+  gsap.to(camera.position, {
+    duration: 1,
+    x: distance * Math.sin(phi) * Math.cos(theta),
+    y: distance * Math.cos(phi),
+    z: distance * Math.sin(phi) * Math.sin(theta),
+    onUpdate: () => {
+      camera.lookAt(scene.position);
+    }
+  });
 }
 
 function initGlobe() {
@@ -176,7 +835,7 @@ function drawCountryBorders() {
 }
 
 function addCountryLabels() {
-  const globeRadius = Globe.getGlobeRadius() + 0.5; // Slightly above the globe surface
+  const globeRadius = Globe.getGlobeRadius() + 0.5;
 
   countries.features.forEach((feature) => {
     const { COUNTRY_NAME } = feature.properties;
@@ -184,35 +843,35 @@ function addCountryLabels() {
     const centerLat = (minLat + maxLat) / 2;
     const centerLon = (minLon + maxLon) / 2;
 
-    // Convert lat/lon to 3D position
     const position = convertLatLonToXYZ(centerLat, centerLon, globeRadius);
 
-    // Create canvas for text
     const canvas = document.createElement("canvas");
-    const context = canvas.getContext("2d");
     canvas.width = 256;
     canvas.height = 128;
+    const context = canvas.getContext("2d");
+    canvas.countryName = COUNTRY_NAME; // Store country name in canvas
+
     context.font = "Bold 24px Arial";
     context.fillStyle = "white";
     context.textAlign = "center";
     context.fillText(COUNTRY_NAME, canvas.width / 2, canvas.height / 2);
 
-    // Create texture
     const texture = new CanvasTexture(canvas);
     const spriteMaterial = new SpriteMaterial({ map: texture, transparent: true });
     const sprite = new Sprite(spriteMaterial);
 
     sprite.position.copy(position);
-    sprite.scale.set(10, 5, 1); // Adjust label size
+    sprite.scale.set(10, 5, 1);
     globeGroup.add(sprite);
   });
 }
+
 
 function addStars() {
   const starGeometry = new SphereGeometry(1.3, 24, 24);
   const colors = [0x0000ff, 0xff0000, 0xffff00, 0xffffff, 0x00ff00];
 
-  for (let i = 0; i < 19000; i++) {
+  for (let i = 0; i < 2000; i++) {
     const starColor = colors[Math.floor(Math.random() * colors.length)];
     const starMaterial = new MeshBasicMaterial({ color: starColor });
     const star = new Mesh(starGeometry, starMaterial);
@@ -336,7 +995,9 @@ function onMouseMove(event) {
 }
 
 function animate() {
-  globeGroup.rotation.y += 0.002;
+  if (isGlobeRotating) {
+    globeGroup.rotation.y += 0.002; // Rotate the globe only if the flag is true
+  }
   controls.update();
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
@@ -407,6 +1068,7 @@ function createButtons() {
   button3.style.cursor = "pointer";
   menuContent.appendChild(button3);
 
+
   // Create Reset Button
   const resetButton = document.createElement("button");
   resetButton.innerText = "Reset";
@@ -442,7 +1104,6 @@ function createButtons() {
     stopCurrentAnimation();
     stopCurrentTypeWriter();
     Globe.arcsData([]); // Clear existing arcs
-    console.log("arcs cleaned");
     showSpaceDebris();
     menuContent.style.display = "none"; // Close menu after click
   });
@@ -484,7 +1145,7 @@ function showSpaceDebris() {
   ];
 
 
-  const scaleFactor = 0.01; 
+  const scaleFactor = 0.01;
 
   // Add debris as small spheres and their orbits
   const numDebris = 100; // Number of debris pieces to generate
@@ -503,7 +1164,7 @@ function showSpaceDebris() {
 
     // Create debris sphere
     const debrisGeometry = new SphereGeometry(0.5, 8, 8);
-    const debrisMaterial = new MeshBasicMaterial({ color: new Color(orbit.color) }); 
+    const debrisMaterial = new MeshBasicMaterial({ color: new Color(orbit.color) });
     const debrisMesh = new Mesh(debrisGeometry, debrisMaterial);
     debrisMesh.userData = { isDebrisOrOrbit: true }; // Mark as debris
 
@@ -524,7 +1185,7 @@ function showSpaceDebris() {
       64 // Number of segments
     );
     const orbitMaterial = new MeshBasicMaterial({
-      color: new Color(orbit.color), 
+      color: new Color(orbit.color),
       transparent: true,
       opacity: 0.3,
       side: DoubleSide,
@@ -859,7 +1520,7 @@ function showInternetCables() {
     `;
     typeWriter(explanationText, verticalButton);
   }
-  
+
 
 }
 
@@ -887,11 +1548,9 @@ function createVerticalButton() {
   document.body.appendChild(verticalButton);
 }
 
-
-
 function typeWriter(htmlContent, element, speed = 50) {
   stopCurrentTypeWriter(); // Stop any ongoing typing
-  element.innerHTML = ""; 
+  element.innerHTML = "";
 
   // Create a temporary container to hold the HTML content
   const tempDiv = document.createElement("div");
@@ -928,7 +1587,6 @@ function typeWriter(htmlContent, element, speed = 50) {
 
   type();
 }
-
 
 function stopCurrentAnimation() {
   if (currentAnimation) {
@@ -1053,9 +1711,9 @@ function haversineDistance(point1, point2) {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(lat1 * (Math.PI / 180)) *
-      Math.cos(lat2 * (Math.PI / 180)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }

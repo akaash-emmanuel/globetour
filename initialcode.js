@@ -1,12 +1,12 @@
 import ThreeGlobe from "three-globe";
-import { WebGLRenderer, Scene, PerspectiveCamera, AmbientLight, DirectionalLight, MeshBasicMaterial, Mesh, Color, Fog, PointLight, Group, Vector3, BufferGeometry, SphereGeometry, CylinderGeometry, LineLoop, LineBasicMaterial, Raycaster, RingGeometry, DoubleSide } from "three";
+import { WebGLRenderer, Scene, PerspectiveCamera,Vector2,AmbientLight, DirectionalLight, MeshBasicMaterial, Mesh, Color, Fog, PointLight, Group, Vector3, BufferGeometry, SphereGeometry, CanvasTexture, SpriteMaterial, Sprite, CylinderGeometry, LineLoop, LineBasicMaterial, Raycaster, RingGeometry, DoubleSide } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import countries from "./assets/Globe Data Min.json";
+import countries from "./assets/Updated Globe Data.json";
 import spaceMusic from "./assets/spacemusic.mp3";
 
 // MediaPipe Hands setup
-import { Hands, HAND_CONNECTIONS } from "@mediapipe/hands";
-import { Camera } from "@mediapipe/camera_utils";
+// import { Hands, HAND_CONNECTIONS } from "@mediapipe/hands";
+// import { Camera } from "@mediapipe/camera_utils";
 
 
 let renderer, camera, scene, controls;
@@ -25,6 +25,7 @@ let mouseY = 0;
 init();
 globeGroup = initGlobe();
 drawCountryBorders();
+addCountryLabels();
 addStars();
 shootingStars();
 prepareAmbientMusic();
@@ -71,7 +72,7 @@ function init() {
   controls.dynamicDampingFactor = 0.01;
   controls.enablePan = false;
   controls.enableZoom = true;
-  controls.minDistance = 200;
+  controls.minDistance = 50;
   controls.maxDistance = 1000;
   controls.rotateSpeed = 0.8;
   controls.zoomSpeed = 1.0;
@@ -91,7 +92,7 @@ function init() {
       }
     } else if (event.key === "-" || event.key === "_") {
       // Zoom out
-      camera.position.z += 40; // Adjust the zoom speed
+      camera.position.z += 90; // Adjust the zoom speed
       if (camera.position.z > controls.maxDistance) {
         camera.position.z = controls.maxDistance;
       }
@@ -172,6 +173,40 @@ function drawCountryBorders() {
   }
 
   return borderGroup;
+}
+
+
+function addCountryLabels() {
+  const globeRadius = Globe.getGlobeRadius() + 0.5; // Slightly above the globe surface
+
+  countries.features.forEach((feature) => {
+    const { COUNTRY_NAME } = feature.properties;
+    const [minLon, minLat, maxLon, maxLat] = feature.bbox;
+    const centerLat = (minLat + maxLat) / 2;
+    const centerLon = (minLon + maxLon) / 2;
+
+    // Convert lat/lon to 3D position
+    const position = convertLatLonToXYZ(centerLat, centerLon, globeRadius);
+
+    // Create canvas for text
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    canvas.width = 256;
+    canvas.height = 128;
+    context.font = "Bold 24px Arial";
+    context.fillStyle = "white";
+    context.textAlign = "center";
+    context.fillText(COUNTRY_NAME, canvas.width / 2, canvas.height / 2);
+
+    // Create texture
+    const texture = new CanvasTexture(canvas);
+    const spriteMaterial = new SpriteMaterial({ map: texture, transparent: true });
+    const sprite = new Sprite(spriteMaterial);
+
+    sprite.position.copy(position);
+    sprite.scale.set(10, 5, 1); // Adjust label size
+    globeGroup.add(sprite);
+  });
 }
 
 function addStars() {

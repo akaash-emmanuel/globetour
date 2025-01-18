@@ -1,1 +1,26 @@
-node_modules
+# Environment variables
+.env
+
+# Python cache files
+_pycache_/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.py[cod]
+
+# System files
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Dependencies
+node_modules/
