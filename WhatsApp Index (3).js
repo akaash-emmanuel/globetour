@@ -846,17 +846,17 @@ function createButtons() {
   menuContent.style.zIndex = "1000";
   document.body.appendChild(menuContent);
 
-  // // Create Button 1 (Shortest Path)
-  // const button1 = document.createElement("button");
-  // button1.innerText = "Shortest Path";
-  // button1.style.padding = "10px 20px";
-  // button1.style.fontSize = "16px";
-  // button1.style.backgroundColor = "#0c529c";
-  // button1.style.color = "#ffffff";
-  // button1.style.border = "none";
-  // button1.style.borderRadius = "5px";
-  // button1.style.cursor = "pointer";
-  // menuContent.appendChild(button1);
+  // Create Button 1 (Shortest Path)
+  const button1 = document.createElement("button");
+  button1.innerText = "Shortest Path";
+  button1.style.padding = "10px 20px";
+  button1.style.fontSize = "16px";
+  button1.style.backgroundColor = "#0c529c";
+  button1.style.color = "#ffffff";
+  button1.style.border = "none";
+  button1.style.borderRadius = "5px";
+  button1.style.cursor = "pointer";
+  menuContent.appendChild(button1);
 
   // Create Button 2 (Internet Cables)
   const button2 = document.createElement("button");
@@ -918,15 +918,15 @@ function createButtons() {
   resetButton.style.cursor = "pointer";
   menuContent.appendChild(resetButton);
 
-  // // Add event listeners for buttons
-  // button1.addEventListener("click", () => {
-  //   stopCurrentAnimation();
-  //   stopCurrentTypeWriter();
-  //   Globe.arcsData([]); // Clear existing arcs
-  //   createVerticalButton();
-  //   showShortestPath();
-  //   menuContent.style.display = "none"; // Close menu after click
-  // });
+  // Add event listeners for buttons
+  button1.addEventListener("click", () => {
+    stopCurrentAnimation();
+    stopCurrentTypeWriter();
+    Globe.arcsData([]); // Clear existing arcs
+    createVerticalButton();
+    showShortestPath();
+    menuContent.style.display = "none"; // Close menu after click
+  });
 
   button2.addEventListener("click", () => {
     stopCurrentAnimation();
@@ -1054,33 +1054,8 @@ function showSpaceDebris() {
 
   const verticalButton = document.getElementById("verticalButton");
   if (verticalButton) {
-        const explanationText = `
-      <div style="color: #ffffff; font-family: Arial, sans-serif;">
-        <h3 style="color: #ffffff; margin-bottom: 15px; font-size: 18px;">
-          The Growing Threat of Space Debris
-        </h3>
-        
-        <p style="margin-bottom: 15px; line-height: 1.4;">
-          Space debris, also known as <b style="color: #FF0000;">"space junk"</b>, is a growing concern for space agencies and satellite operators worldwide. 
-          It consists of defunct satellites, spent rocket stages, and fragments from collisions or explosions.
-        </p>
-
-        <div style="margin-bottom: 15px; line-height: 1.6;">
-          <p style="margin-bottom: 10px; font-weight: bold;">Key Points:</p>
-          <span style="color: #00FFFF;">■</span> <b>Low Earth Orbit (LEO):</b> The most crowded region, where debris poses a significant risk to satellites and the International Space Station (ISS).<br>
-          <span style="color: #00FF00;">■</span> <b>Medium Earth Orbit (MEO):</b> Home to navigation satellites like GPS, which are also at risk from debris.<br>
-          <span style="color: #FF0000;">■</span> <b>Geostationary Orbit (GEO):</b> A critical region for communication satellites, where debris can cause long-term disruptions.
-        </div>
-
-        <p style="margin-bottom: 15px; line-height: 1.4;">
-          Space debris travels at speeds of up to <b style="color: #FFD700;">28,000 km/h</b>, making even small fragments potentially catastrophic. 
-          A collision with a piece of debris can destroy satellites, endanger astronauts, and create even more debris in a dangerous cascade known as <b style="color: #FF4500;">"Kessler Syndrome"</b>.
-        </p>
-
-        <p style="line-height: 1.4;">
-          <b style="color: #FF4500;">Did You Know?</b> There are over <b>27,000</b> tracked pieces of space debris orbiting Earth, and millions more that are too small to track but still dangerous.
-        </p>
-      </div>
+    const explanationText = `
+      low earth orbit, medium earth and geostationary, research them and add them thanks
     `;
     typeWriter(explanationText, verticalButton);
   }
@@ -1236,6 +1211,7 @@ async function addEarthquakeVisualization() {
     }
   }
 }
+
 async function fetchPopulationData() {
   // Fallback data for major countries
   
@@ -1261,6 +1237,9 @@ async function fetchPopulationData() {
     return fallbackData;
   }
 }
+
+
+// Add this new function to handle population visualization
 async function showPopulationVisualization() {
   // Create loading indicator
   const loadingDiv = document.createElement('div');
@@ -1366,6 +1345,7 @@ async function showPopulationVisualization() {
     }
   }
 }
+
 function getPopulationColor(population) {
   if (!population) return '#1a1a1a'; // Darker gray for no data
 
@@ -1684,32 +1664,8 @@ function showInternetCables() {
   const verticalButton = document.getElementById("verticalButton");
   if (verticalButton) {
     const explanationText = `
-      <div style="color: #ffffff; font-family: Arial, sans-serif;">
-        <h3 style="color: #ffffff; margin-bottom: 15px; font-size: 18px;">
-          The Backbone of the Internet
-        </h3>
-        
-        <p style="margin-bottom: 15px; line-height: 1.4;">
-          The internet, as we know it, is powered by a vast network of undersea and terrestrial cables that span the globe. 
-          These cables are the <b style="color: #00FF00;">lifelines of global communication</b>, carrying over 99% of international data traffic.
-        </p>
-
-        <div style="margin-bottom: 15px; line-height: 1.6;">
-          <p style="margin-bottom: 10px; font-weight: bold;">Key Points:</p>
-          <span style="color: #00FF00;">■</span> <b>Undersea Cables:</b> These are the most critical infrastructure for global internet connectivity, connecting continents and enabling real-time communication.<br>
-          <span style="color: #FF0000;">■</span> <b>Terrestrial Networks:</b> These cables connect cities and countries, forming the backbone of national internet infrastructure.<br>
-          <span style="color: #0000FF;">■</span> <b>Satellite Links:</b> While less common, satellite links provide connectivity to remote areas where laying cables is impractical.
-        </div>
-
-        <p style="margin-bottom: 15px; line-height: 1.4;">
-          The internet cables you see here represent the <b style="color: #FFD700;">physical infrastructure</b> that makes the digital world possible. 
-          Without these cables, global communication, commerce, and information sharing would come to a halt.
-        </p>
-
-        <p style="line-height: 1.4;">
-          <b style="color: #FF4500;">Fun Fact:</b> The total length of undersea cables is enough to circle the Earth more than 30 times!
-        </p>
-      </div>
+      Well, I did not add the question at the end of the first button for no reason. This is the Internet (or what is actually the backbone of the internet).
+      Undersea cables, terrestrial networks, satellite links, go research
     `;
     typeWriter(explanationText, verticalButton);
   }
