@@ -24,7 +24,11 @@ let mouseX = 0;
 let mouseY = 0;
 let isGlobeRotating = true;
 
-
+//to-do list:
+// additional : allow for the continents to free roam with user mouse drags and position continents anywhere they want.
+// 1. initializePermanentChatbot() - not done
+// 2. addSearchFeature() - not done
+// 3. 
 
 init();
 globeGroup = initGlobe();
@@ -49,14 +53,17 @@ function init() {
   document.body.style.overflow = "hidden";
 
   scene = new Scene();
-  scene.add(new AmbientLight(0xffffff, 0.3));
-  scene.background = new Color(0x000000);
+  scene.add(new AmbientLight(0xffffff, 0.3));    // set ambient lighting to the screen (scene), a tint of color branching from one point or all over
+  scene.background = new Color(0x000000);        // black space color
 
-  camera = new PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+  camera = new PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);   // set camera view
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
 
-  const dLight = new DirectionalLight(0x89c9f8, 1.8);
+
+// three directional lights set to the screen to add a space effect to the globe
+
+  const dLight = new DirectionalLight(0x89c9f8, 1.8);    
   dLight.position.set(1, 1, 1);
   camera.add(dLight);
 
@@ -71,9 +78,9 @@ function init() {
   camera.position.z = 400;
   scene.add(camera);
 
-  scene.fog = new Fog(0x535ef3, 400, 2000);
+  scene.fog = new Fog(0x535ef3, 400, 2000);   // a fog to make sure the stars and everything in the background appears farther
 
-  controls = new OrbitControls(camera, renderer.domElement);
+  controls = new OrbitControls(camera, renderer.domElement);   // set basic default attribrutes to the globe and user controls
   controls.enableDamping = false;
   controls.dynamicDampingFactor = 0.01;
   controls.enablePan = false;
@@ -88,7 +95,9 @@ function init() {
 
   window.addEventListener("resize", onWindowResize, false);
   window.addEventListener("mousemove", onMouseMove);
+
   // Add event listeners for zooming
+
   window.addEventListener("keydown", (event) => {
     if (event.key === "+" || event.key === "=") {
       // Zoom in
@@ -107,6 +116,13 @@ function init() {
   addSearchFeature();
 }
 function initializePermanentChatbot() {
+// 1. Make chatbot to be a button that is reducible and  into an icon
+// 2. Make chatbot draggable
+// 3. Make certain words in the chatbot trigger certain functions and search functionalities
+// 4. Highlight the searched countries
+// 5. Fix the api key for the chatbot
+
+  // Create chatbot interface
   const chatbotInterface = document.createElement("div");
   chatbotInterface.style.position = "absolute";
   chatbotInterface.style.bottom = "20px";
@@ -295,6 +311,11 @@ function initializePermanentChatbot() {
   document.body.appendChild(chatbotInterface);
 }
 function addSearchFeature() {
+  // 1. Fix the search functionality to work on all countries, is part of FocusOnCountry()
+  // 2. Highlight the searched countries border and display generic information about that country as a hover menu
+  // 3. Fix the stop rotate feature to continue rotating after the search is performed and user has undo-ed the search or clicked on another button in the project
+  // 4. Elevate the country that is searched slightly above other countries so it looks nice and can display information about it clearly
+
   // Create search container
   const searchContainer = document.createElement("div");
   searchContainer.style.position = "absolute";
