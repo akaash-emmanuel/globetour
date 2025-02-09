@@ -28,7 +28,8 @@ let isGlobeRotating = true;
 // additional : allow for the continents to free roam with user mouse drags and position continents anywhere they want.
 // 1. initializePermanentChatbot() - not done
 // 2. addSearchFeature() - not done
-// 3. 
+// 3. addCountryLabels() - not done
+
 
 init();
 globeGroup = initGlobe();
@@ -679,6 +680,7 @@ function drawCountryBorders() {
   return borderGroup;
 }
 function addCountryLabels() {
+// add a country label above each selected country to display basic information about them
   const globeRadius = Globe.getGlobeRadius() + 0.5;
 
   countries.features.forEach((feature) => {
