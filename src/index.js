@@ -1,5 +1,5 @@
 import ThreeGlobe from "three-globe";
-import { WebGLRenderer, Scene, PerspectiveCamera, AmbientLight, DirectionalLight, MeshBasicMaterial, Mesh, Color, Fog, PointLight, Group, Vector3, Vector2, BufferGeometry, SphereGeometry, CanvasTexture, SpriteMaterial, Sprite, CylinderGeometry, LineLoop, LineBasicMaterial, Raycaster, RingGeometry, DoubleSide } from "three";
+import { WebGLRenderer, Scene, PerspectiveCamera, AmbientLight, DirectionalLight, MeshBasicMaterial, Mesh, Color, Fog, PointLight, Group, Vector3, Vector2, BufferGeometry, SphereGeometry, CanvasTexture, SpriteMaterial, Sprite, CylinderGeometry, LineLoop, LineBasicMaterial, Raycaster, RingGeometry, DoubleSide, Clock } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import countries from "./assets/Updated Globe Data.json";
 import spaceMusic from "./assets/spacemusic.mp3";
@@ -9,9 +9,19 @@ import axios from 'axios';
 
 // Import the astronaut tools components
 import * as AstronautTools from './components/AstronautTools.js';
+import * as Moon from './components/Moon.js';
+import * as Sun from './components/Sun.js';
+
+// Import constants from Sun.js and Moon.js for camera positioning
+const SUN_RADIUS = 10; // Same as in Sun.js
+const MOON_RADIUS = 0.5; // Same as in Moon.js
+const MOON_DISTANCE = 300; // Same as in Moon.js
+
 let renderer, camera, scene, controls;
 let Globe;
 let globeGroup;
+let moon; // Reference to the moon object
+let sun; // Reference to the sun object
 let audio;
 let audioPlayed = false;
 let windowHalfX = window.innerWidth / 2;
@@ -21,6 +31,9 @@ let currentTypeWriter = null;
 let mouseX = 0;
 let mouseY = 0;
 let isGlobeRotating = true;
+let isEarthOrbiting = true; // Whether Earth orbits around the Sun
+let clock = new Clock(); // For tracking time in animations
+let cameraFocus = 'earth'; // Current camera focus: 'earth', 'sun', or 'moon'
 
 // Initialize globals
 let currentTool = null;
@@ -33,6 +46,8 @@ addCountryLabels();
 addStars();
 shootingStars();
 prepareAmbientMusic();
+initSun(); // Initialize the sun
+initMoon(); // Initialize the moon
 onWindowResize();
 animate();
 createButtons();
@@ -51,7 +66,7 @@ function init() {
   scene.add(new AmbientLight(0xffffff, 0.3));    // set ambient lighting to the screen (scene), a tint of color branching from one point or all over
   scene.background = new Color(0x000000);        // black space color
 
-  camera = new PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);   // set camera view
+  camera = new PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 5000);   // set camera view with increased far plane
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
 
@@ -72,8 +87,13 @@ function init() {
 
   camera.position.z = 400;
   scene.add(camera);
+  
+  // Store initial camera position for reset functionality
+  camera.userData = {
+    initialPosition: new Vector3(0, 0, 400)
+  };
 
-  scene.fog = new Fog(0x535ef3, 400, 2000);   // a fog to make sure the stars and everything in the background appears farther
+  scene.fog = new Fog(0x535ef3, 500, 4000);   // a fog to make sure the stars and everything in the background appears farther, extended for sun visibility
 
   controls = new OrbitControls(camera, renderer.domElement);   // set basic default attribrutes to the globe and user controls
   controls.enableDamping = false;
@@ -81,7 +101,7 @@ function init() {
   controls.enablePan = false;
   controls.enableZoom = true;
   controls.minDistance = 115;
-  controls.maxDistance = 1000;
+  controls.maxDistance = 4000; // Increased to allow viewing the sun
   controls.rotateSpeed = 0.8;
   controls.zoomSpeed = 1.0;
   controls.autoRotate = false;
@@ -224,7 +244,7 @@ function addStars() {
   const starGeometry = new SphereGeometry(1.3, 24, 24);
   const colors = [0x0000ff, 0xff0000, 0xffff00, 0xffffff, 0x00ff00];
 
-  for (let i = 0; i < 20000; i++) {
+  for (let i = 0; i < 10000; i++) {
     const starColor = colors[Math.floor(Math.random() * colors.length)];
     const starMaterial = new MeshBasicMaterial({ color: starColor });
     const star = new Mesh(starGeometry, starMaterial);
@@ -341,14 +361,280 @@ function onMouseMove(event) {
   mouseX = event.clientX - windowHalfX;
   mouseY = event.clientY - windowHalfY;
 }
+
+// Initialize the sun
+function initSun() {
+  // Create the sun and add it to the scene
+  sun = Sun.createSun(scene);
+  
+  // Add UI control for sun visibility
+  addSunToggleButton();
+}
+
+// Initialize the moon
+function initMoon() {
+  // Get the Earth globe radius for proper scaling
+  const globeRadius = Globe.getGlobeRadius();
+  
+  // Create the moon and add it to the scene
+  moon = Moon.createMoon(scene, globeRadius);
+  
+  // Add UI control for moon visibility
+  addMoonToggleButton();
+}
+
+// Add a button to toggle sun visibility
+function addSunToggleButton() {
+  const sunToggleButton = document.createElement('button');
+  sunToggleButton.textContent = 'Sun: ON';
+  sunToggleButton.style.position = 'absolute';
+  sunToggleButton.style.bottom = '10px';
+  sunToggleButton.style.left = '100px';
+  sunToggleButton.style.padding = '8px 12px';
+  sunToggleButton.style.backgroundColor = '#444';
+  sunToggleButton.style.color = 'white';
+  sunToggleButton.style.border = '1px solid #666';
+  sunToggleButton.style.borderRadius = '4px';
+  sunToggleButton.style.cursor = 'pointer';
+  sunToggleButton.style.zIndex = '1000';
+  sunToggleButton.style.fontWeight = 'bold';
+  
+  // Add Earth orbit toggle button next to the sun button
+  const earthOrbitToggle = document.createElement('button');
+  earthOrbitToggle.textContent = 'Earth Orbit: ON';
+  earthOrbitToggle.style.position = 'absolute';
+  earthOrbitToggle.style.bottom = '10px';
+  earthOrbitToggle.style.left = '190px';
+  earthOrbitToggle.style.padding = '8px 12px';
+  earthOrbitToggle.style.backgroundColor = '#444';
+  earthOrbitToggle.style.color = 'white';
+  earthOrbitToggle.style.border = '1px solid #666';
+  earthOrbitToggle.style.borderRadius = '4px';
+  earthOrbitToggle.style.cursor = 'pointer';
+  earthOrbitToggle.style.zIndex = '1000';
+  earthOrbitToggle.style.fontWeight = 'bold';
+  
+  earthOrbitToggle.addEventListener('click', () => {
+    isEarthOrbiting = !isEarthOrbiting;
+    earthOrbitToggle.textContent = `Earth Orbit: ${isEarthOrbiting ? 'ON' : 'OFF'}`;
+    earthOrbitToggle.style.backgroundColor = isEarthOrbiting ? '#444' : '#333';
+    earthOrbitToggle.style.border = isEarthOrbiting ? '1px solid #666' : '1px solid #444';
+    
+    // Reset Earth position when turning orbit off
+    if (!isEarthOrbiting) {
+      globeGroup.position.set(0, 0, 0);
+    }
+  });
+  
+  document.body.appendChild(earthOrbitToggle);
+  
+  // Add focus switching buttons
+  const focusButtonsContainer = document.createElement('div');
+  focusButtonsContainer.style.position = 'absolute';
+  focusButtonsContainer.style.bottom = '10px';
+  focusButtonsContainer.style.left = '320px';
+  focusButtonsContainer.style.display = 'flex';
+  focusButtonsContainer.style.gap = '10px';
+  focusButtonsContainer.style.zIndex = '1000';
+  
+  // Create focus button styles
+  const createFocusButton = (text, target) => {
+    const button = document.createElement('button');
+    button.textContent = `Focus: ${text}`;
+    button.setAttribute('data-target', target);
+    button.className = 'focus-button';
+    button.style.padding = '8px 12px';
+    button.style.backgroundColor = target === 'earth' ? '#0066cc' : '#444'; // Default focus is Earth
+    button.style.color = 'white';
+    button.style.border = target === 'earth' ? '1px solid #0099ff' : '1px solid #666';
+    button.style.borderRadius = '4px';
+    button.style.cursor = 'pointer';
+    button.style.fontWeight = target === 'earth' ? 'bold' : 'normal';
+    
+    button.addEventListener('click', () => {
+      switchCameraFocus(target);
+    });
+    
+    return button;
+  };
+  
+  // Add buttons for each celestial body
+  const earthFocusButton = createFocusButton('Earth', 'earth');
+  const moonFocusButton = createFocusButton('Moon', 'moon');
+  const sunFocusButton = createFocusButton('Sun', 'sun');
+  
+  focusButtonsContainer.appendChild(earthFocusButton);
+  focusButtonsContainer.appendChild(moonFocusButton);
+  focusButtonsContainer.appendChild(sunFocusButton);
+  
+  document.body.appendChild(focusButtonsContainer);
+  
+  // Add a system view button to zoom out and see the entire solar system
+  const systemViewButton = document.createElement('button');
+  systemViewButton.textContent = 'System View';
+  systemViewButton.style.position = 'absolute';
+  systemViewButton.style.bottom = '50px';
+  systemViewButton.style.left = '320px';
+  systemViewButton.style.padding = '8px 12px';
+  systemViewButton.style.backgroundColor = '#444';
+  systemViewButton.style.color = 'white';
+  systemViewButton.style.border = '1px solid #666';
+  systemViewButton.style.borderRadius = '4px';
+  systemViewButton.style.cursor = 'pointer';
+  systemViewButton.style.zIndex = '1000';
+  
+  systemViewButton.addEventListener('click', () => {
+    // Zoom out to see the entire system
+    gsap.to(camera.position, {
+      duration: 2,
+      x: 0,
+      y: 500, 
+      z: 2000,
+      onUpdate: () => {
+        camera.lookAt(0, 0, 0);
+      },
+      onComplete: () => {
+        cameraFocus = '';  // Clear focus when in system view
+        updateFocusButtonsUI();
+      }
+    });
+  });
+  
+  document.body.appendChild(systemViewButton);
+  
+  // Add a reset camera button
+  const resetCameraButton = document.createElement('button');
+  resetCameraButton.textContent = 'Reset Camera';
+  resetCameraButton.style.position = 'absolute';
+  resetCameraButton.style.bottom = '50px';
+  resetCameraButton.style.left = '430px';
+  resetCameraButton.style.padding = '8px 12px';
+  resetCameraButton.style.backgroundColor = '#444';
+  resetCameraButton.style.color = 'white';
+  resetCameraButton.style.border = '1px solid #666';
+  resetCameraButton.style.borderRadius = '4px';
+  resetCameraButton.style.cursor = 'pointer';
+  resetCameraButton.style.zIndex = '1000';
+  
+  resetCameraButton.addEventListener('click', () => {
+    // Reset to Earth focus with default position
+    gsap.to(camera.position, {
+      duration: 1.5,
+      x: globeGroup.position.x,
+      y: globeGroup.position.y,
+      z: globeGroup.position.z + 400,
+      onUpdate: () => {
+        camera.lookAt(globeGroup.position);
+      },
+      onComplete: () => {
+        cameraFocus = 'earth';
+        updateFocusButtonsUI();
+      }
+    });
+  });
+  
+  document.body.appendChild(resetCameraButton);
+  
+  sunToggleButton.addEventListener('click', () => {
+    if (sun) {
+      const isVisible = Sun.toggleSunVisibility(sun);
+      sunToggleButton.textContent = `Sun: ${isVisible ? 'ON' : 'OFF'}`;
+      sunToggleButton.style.backgroundColor = isVisible ? '#444' : '#333';
+      sunToggleButton.style.border = isVisible ? '1px solid #666' : '1px solid #444';
+    }
+  });
+  
+  document.body.appendChild(sunToggleButton);
+}
+
+// Add a button to toggle moon visibility
+function addMoonToggleButton() {
+  const moonToggleButton = document.createElement('button');
+  moonToggleButton.textContent = 'Moon: ON';
+  moonToggleButton.style.position = 'absolute';
+  moonToggleButton.style.bottom = '10px';
+  moonToggleButton.style.left = '10px';
+  moonToggleButton.style.padding = '8px 12px';
+  moonToggleButton.style.backgroundColor = '#444';
+  moonToggleButton.style.color = 'white';
+  moonToggleButton.style.border = '1px solid #666';
+  moonToggleButton.style.borderRadius = '4px';
+  moonToggleButton.style.cursor = 'pointer';
+  moonToggleButton.style.zIndex = '1000';
+  moonToggleButton.style.fontWeight = 'bold';
+  
+  moonToggleButton.addEventListener('click', () => {
+    if (moon) {
+      const isVisible = Moon.toggleMoonVisibility(moon);
+      moonToggleButton.textContent = `Moon: ${isVisible ? 'ON' : 'OFF'}`;
+      moonToggleButton.style.backgroundColor = isVisible ? '#444' : '#333';
+      moonToggleButton.style.border = isVisible ? '1px solid #666' : '1px solid #444';
+    }
+  });
+  
+  document.body.appendChild(moonToggleButton);
+}
+
 function animate() {
+  const deltaTime = clock.getDelta(); // Get time since last frame
+  
+  // Update Earth's position around the Sun if both exist and orbiting is enabled
+  if (sun && globeGroup && isEarthOrbiting) {
+    Sun.updateEarthPosition(globeGroup, sun, deltaTime, moon);
+  }
+  
   if (isGlobeRotating) {
     globeGroup.rotation.y += 0.002; // Rotate the globe only if the flag is true
   }
+  
+  // Update moon position if it exists
+  if (moon) {
+    Moon.updateMoonPosition(moon, globeGroup, deltaTime);
+  }
+  
+  // Update camera to follow moving objects when in focus
+  updateCameraForMovingObjects();
+  
   controls.update();
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }
+
+// Function to adjust camera position to maintain view of moving celestial bodies
+function updateCameraForMovingObjects() {
+  if (!cameraFocus || !controls.enabled) return;
+  
+  // Calculate current distance from camera to target
+  const currentTarget = controls.target;
+  const currentDistance = camera.position.distanceTo(currentTarget);
+  
+  // Get target position based on focus
+  let targetPosition;
+  
+  if (cameraFocus === 'earth' && globeGroup) {
+    targetPosition = globeGroup.position.clone();
+  } else if (cameraFocus === 'moon' && moon) {
+    targetPosition = moon.position.clone();
+  } else if (cameraFocus === 'sun' && sun) {
+    targetPosition = sun.position.clone();
+  }
+  
+  if (targetPosition) {
+    // Update controls target to follow the object
+    controls.target.copy(targetPosition);
+    
+    // Maintain camera distance and relative orientation
+    const cameraDirection = new Vector3().subVectors(camera.position, currentTarget).normalize();
+    const newCameraPosition = targetPosition.clone().add(cameraDirection.multiplyScalar(currentDistance));
+    
+    // Smoothly adjust camera position
+    camera.position.lerp(newCameraPosition, 0.05);
+    
+    // Ensure camera is always looking at the target
+    camera.lookAt(targetPosition);
+  }
+}
+
 function createButtons() {
   // Create Hamburger Menu
   const hamburgerMenu = document.createElement("div");
@@ -1061,6 +1347,195 @@ function showAstronautToolsMenu() {
   });
 }
 
+// Function to switch camera focus between Earth, Moon, and Sun
+function switchCameraFocus(target, duration = 1.5) {
+  if (!target) return;
+  
+  let targetPosition, lookAtPosition;
+  let distanceFactor = 1;
+  
+  // Store previous focus for transition effect
+  const previousFocus = cameraFocus;
+  
+  switch(target) {
+    case 'sun':
+      if (!sun) return;
+      // Position the camera to get a good view of the sun
+      targetPosition = new Vector3(
+        sun.position.x - 50, 
+        sun.position.y + 20, 
+        sun.position.z + 50
+      );
+      lookAtPosition = sun.position.clone();
+      cameraFocus = 'sun';
+      
+      // Disable orbit controls temporarily during transition
+      controls.enabled = false;
+      
+      // Adjust control limits for sun viewing (allow more distance)
+      controls.minDistance = 30;
+      controls.maxDistance = 500;
+      break;
+      
+    case 'moon':
+      if (!moon) return;
+      // Calculate distance from moon based on its size
+      const moonRadius = moon.geometry.parameters.radius;
+      distanceFactor = 20; // Get closer to the moon but not too close
+      
+      targetPosition = new Vector3(
+        moon.position.x - moonRadius * distanceFactor,
+        moon.position.y + moonRadius * distanceFactor * 0.5,
+        moon.position.z + moonRadius * distanceFactor
+      );
+      lookAtPosition = moon.position.clone();
+      cameraFocus = 'moon';
+      
+      // Disable orbit controls temporarily during transition
+      controls.enabled = false;
+      
+      // Adjust control limits for moon viewing
+      controls.minDistance = moonRadius * 5;
+      controls.maxDistance = moonRadius * 50;
+      break;
+      
+    case 'earth':
+    default:
+      // Get a good view of Earth
+      const globeRadius = Globe.getGlobeRadius();
+      targetPosition = new Vector3(
+        globeGroup.position.x,
+        globeGroup.position.y + globeRadius * 0.5,
+        globeGroup.position.z + globeRadius * 4
+      );
+      lookAtPosition = globeGroup.position.clone();
+      cameraFocus = 'earth';
+      
+      // Reset control limits for Earth viewing
+      controls.minDistance = 115;
+      controls.maxDistance = 1000;
+      break;
+  }
+  
+  // Find midpoint for smoother transition if switching between celestial bodies
+  if (previousFocus !== cameraFocus && previousFocus && cameraFocus) {
+    // Create a smoother path with a slight arc instead of direct line
+    const midpoint = new Vector3().addVectors(camera.position, targetPosition).multiplyScalar(0.5);
+    
+    // Add some height to the midpoint for arc effect
+    midpoint.y += 200;
+    
+    // Two-part animation for smoother experience
+    gsap.timeline()
+      .to(camera.position, {
+        duration: duration * 0.5,
+        x: midpoint.x,
+        y: midpoint.y,
+        z: midpoint.z,
+        ease: "power1.out",
+        onUpdate: () => {
+          // Gradually transition where the camera is looking
+          camera.lookAt(lookAtPosition);
+        }
+      })
+      .to(camera.position, {
+        duration: duration * 0.5,
+        x: targetPosition.x,
+        y: targetPosition.y,
+        z: targetPosition.z,
+        ease: "power1.inOut",
+        onUpdate: () => {
+          camera.lookAt(lookAtPosition);
+        },
+        onComplete: () => {
+          // Re-enable controls after animation
+          controls.enabled = true;
+          
+          // Set controls target to the focused object
+          controls.target.copy(lookAtPosition);
+        }
+      });
+  } else {
+    // Direct animation for first focus or same target refocus
+    gsap.to(camera.position, {
+      duration: duration,
+      x: targetPosition.x,
+      y: targetPosition.y,
+      z: targetPosition.z,
+      ease: "power2.inOut",
+      onUpdate: () => {
+        camera.lookAt(lookAtPosition);
+      },
+      onComplete: () => {
+        // Re-enable controls after animation
+        controls.enabled = true;
+        
+        // Set controls target to the focused object
+        controls.target.copy(lookAtPosition);
+      }
+    });
+  }
+  
+  // Update the focus buttons
+  updateFocusButtonsUI();
+}
+
+// Function to update the UI of focus buttons
+function updateFocusButtonsUI() {
+  const focusButtons = document.querySelectorAll('.focus-button');
+  
+  focusButtons.forEach(button => {
+    const target = button.getAttribute('data-target');
+    
+    // Apply styling based on current focus
+    if (target === cameraFocus) {
+      // Highlighted styling for active focus
+      button.style.backgroundColor = '#0066cc';
+      button.style.border = '2px solid #0099ff';
+      button.style.fontWeight = 'bold';
+      button.style.boxShadow = '0 0 8px rgba(0, 153, 255, 0.7)';
+      button.style.transform = 'scale(1.05)';
+      button.style.transition = 'all 0.3s ease';
+      
+      // Update the text to show it's the current focus
+      button.textContent = `Focused: ${target.charAt(0).toUpperCase() + target.slice(1)}`;
+    } else {
+      // Normal styling for inactive focus
+      button.style.backgroundColor = '#444';
+      button.style.border = '1px solid #666';
+      button.style.fontWeight = 'normal';
+      button.style.boxShadow = 'none';
+      button.style.transform = 'scale(1)';
+      button.style.transition = 'all 0.3s ease';
+      
+      // Reset text
+      button.textContent = `Focus: ${target.charAt(0).toUpperCase() + target.slice(1)}`;
+    }
+  });
+  
+  // Also update the System View button if applicable
+  let systemViewButton = null;
+  
+  // Find the System View button by its text content
+  document.querySelectorAll('button').forEach(button => {
+    if (button.textContent === 'System View') {
+      systemViewButton = button;
+    }
+  });
+  
+  if (systemViewButton && !cameraFocus) {
+    systemViewButton.style.backgroundColor = '#0066cc';
+    systemViewButton.style.border = '2px solid #0099ff';
+    systemViewButton.style.fontWeight = 'bold';
+    systemViewButton.style.boxShadow = '0 0 8px rgba(0, 153, 255, 0.7)';
+  } else if (systemViewButton) {
+    systemViewButton.style.backgroundColor = '#444';
+    systemViewButton.style.border = '1px solid #666';
+    systemViewButton.style.fontWeight = 'normal';
+    systemViewButton.style.boxShadow = 'none';
+  }
+}
+
 function clearAstronautTools() {
   // Clear any existing astronaut tool visualizations
   Globe.ringsData([]);
@@ -1370,6 +1845,7 @@ async function showSpaceWeatherMonitor() {
         </div>
       `;
       
+      
       spaceWeatherInfo.innerHTML = infoHTML;
     }
     
@@ -1499,7 +1975,7 @@ async function showSatelliteTracker() {
     
     for (const sat of satellites) {
       try {
-        // Fetch TLE data from Celestrak
+       // Fetch TLE data from Celestrak
         const response = await axios.get(`https://celestrak.org/NORAD/elements/gp.php?CATNR=${sat.id}&FORMAT=TLE`);
         const tleData = response.data.trim().split('\n');
         
@@ -1601,7 +2077,7 @@ async function showSatelliteTracker() {
         
         infoHTML += `
           <div style="margin-top: 15px; font-size: 12px;">
-            Last updated: ${now.toLocaleTimeString()}
+            Last updated: ${new Date().toLocaleTimeString()}
           </div>
         `;
         
@@ -1630,912 +2106,3 @@ async function showSatelliteTracker() {
     }
   }
 }
-
-function calculateOrbitPoints(tleLine1, tleLine2) {
-  const points = [];
-  const globeRadius = Globe.getGlobeRadius();
-  
-  try {
-    // Initialize satellite record
-    const satrec = satellite.twoline2satrec(tleLine1, tleLine2);
-    
-    // Calculate points for one full orbit (360 degrees)
-    for (let i = 0; i < 360; i += 5) {
-      // Calculate time for this point (using current time and adding i minutes)
-      const date = new Date();
-      date.setMinutes(date.getMinutes() + i);
-      
-      // Propagate satellite position
-      const positionAndVelocity = satellite.propagate(satrec, date);
-      const positionEci = positionAndVelocity.position;
-      
-      if (positionEci) {
-        // Convert ECI coordinates to geographic coordinates
-        const gmst = satellite.gstime(date);
-        const positionGd = satellite.eciToGeodetic(positionEci, gmst);
-        
-        // Get lat/long in degrees
-        const lat = satellite.degreesLat(positionGd.latitude);
-        const lng = satellite.degreesLong(positionGd.longitude);
-        const alt = positionGd.height;
-        
-        // Convert to globe coordinates and add to points array
-        const point = convertLatLonToXYZ(lat, lng, globeRadius + (alt / 100));
-        points.push(point);
-      }
-    }
-    
-    return points;
-  } catch (error) {
-    console.error('Error calculating orbit points:', error);
-    return points;
-  }
-}
-async function showRadiationMonitor() {
-  if (!window.astronautToolIntervals) {
-    window.astronautToolIntervals = [];
-  }
-  
-  // Create info panel
-  const verticalButton = document.getElementById("verticalButton");
-  if (verticalButton) {
-    verticalButton.innerHTML = `
-      <div style="color: #ffffff; font-family: 'Montserrat', sans-serif;">
-        <h3 style="color: #FF9933; margin-bottom: 15px; font-size: 18px; text-align: center;">
-          Radiation Monitor
-        </h3>
-        
-        <div id="radiation-info" style="margin-top: 15px;">
-          <div style="margin-bottom: 10px;">Loading radiation data...</div>
-        </div>
-        
-        <div style="margin-top: 25px; font-size: 12px; color: #aaa;">
-          Real-time radiation levels across different orbital regions.
-        </div>
-      </div>
-    `;
-  }
-  
-  try {
-    // Fetch the latest space weather data from NOAA SWPC
-    const response = await axios.get('https://services.swpc.noaa.gov/json/goes/primary/differential-protons-1-day.json');
-    const radiationData = response.data;
-    
-    // Extract the most recent measurement
-    const latestData = radiationData[radiationData.length - 1];
-    
-    // Calculate radiation risk levels
-    const lowEnergyProtons = latestData?.['P1'];
-    const highEnergyProtons = latestData?.['P7'];
-    
-    // Create a radiation heat map around Earth
-    createRadiationHeatmap(lowEnergyProtons, highEnergyProtons);
-    
-    // Update the info panel
-    updateRadiationInfoPanel(latestData);
-    
-    // Update radiation data every 5 minutes
-    const intervalId = setInterval(async () => {
-      try {
-        const response = await axios.get('https://services.swpc.noaa.gov/json/goes/primary/differential-protons-1-day.json');
-        const radiationData = response.data;
-        const latestData = radiationData[radiationData.length - 1];
-        
-        // Calculate radiation risk levels
-        const lowEnergyProtons = latestData?.['P1'];
-        const highEnergyProtons = latestData?.['P7'];
-        
-        // Create a radiation heat map around Earth
-        createRadiationHeatmap(lowEnergyProtons, highEnergyProtons);
-        
-        // Update the info panel
-        updateRadiationInfoPanel(latestData);
-      } catch (error) {
-        console.error('Error updating radiation data:', error);
-      }
-    }, 300000); // 5 minutes
-    
-    window.astronautToolIntervals.push(intervalId);
-    
-  } catch (error) {
-    console.error('Error fetching radiation data:', error);
-    
-    // Show fallback data in case of error
-    createRadiationHeatmap(10, 0.5);
-    
-    // Show error in info panel
-    const radiationInfo = document.getElementById('radiation-info');
-    if (radiationInfo) {
-      radiationInfo.innerHTML = `
-        <div style="color: #FF6B6B; margin-bottom: 15px;">
-          Error loading real-time radiation data. Showing simulated data instead.
-        </div>
-        
-        <div style="margin-bottom: 8px;">
-          <span style="color: #aaa;">Solar Energetic Particles:</span> Moderate
-        </div>
-        <div style="margin-bottom: 8px;">
-          <span style="color: #aaa;">Galactic Cosmic Rays:</span> Normal
-        </div>
-        <div style="margin-bottom: 8px;">
-          <span style="color: #aaa;">South Atlantic Anomaly:</span> Active
-        </div>
-        <div style="margin-bottom: 15px;">
-          <span style="color: #aaa;">Last Updated:</span> ${new Date().toLocaleTimeString()}
-        </div>
-        
-        <div style="background-color: rgba(255, 153, 51, 0.2); padding: 10px; border-radius: 5px;">
-          <div style="font-weight: bold; margin-bottom: 5px;">EVA Risk Assessment</div>
-          <div>Current radiation level is <span style="color: #FFCC00;">MODERATE</span></div>
-          <div>EVA permitted with standard shielding precautions</div>
-        </div>
-      `;
-    }
-  }
-}
-
-function createRadiationHeatmap(lowEnergyProtons, highEnergyProtons) {
-  // Convert real data to visualization parameters
-  // If no data, use default values
-  const lowProtonLevel = lowEnergyProtons || 10;
-  const highProtonLevel = highEnergyProtons || 0.5;
-  
-  // Clear existing polygon data
-  Globe.polygonsData([]);
-  
-  // Create a heatmap-like visualization for radiation levels
-  const points = [];
-  const intensity = [];
-  
-  // Add South Atlantic Anomaly (SAA) - a region with higher radiation
-  for (let lat = -40; lat <= -10; lat += 1) {
-    for (let lng = -60; lng <= -30; lng += 1) {
-      points.push({ lat, lng });
-      intensity.push(0.9); // High radiation
-    }
-  }
-  
-  // Add Van Allen belt regions
-  for (let lng = -180; lng <= 180; lng += 5) {
-    // Inner belt
-    for (let lat = -30; lat <= 30; lat += 5) {
-      points.push({ lat, lng });
-      intensity.push(0.7);
-    }
-    
-    // Outer belt
-    for (let lat = -60; lat <= 60; lat += 5) {
-      if (Math.abs(lat) > 30) {
-        points.push({ lat, lng });
-        intensity.push(0.5);
-      }
-    }
-    
-    // Polar regions (less shielded from solar radiation)
-    for (let lat = -90; lat <= 90; lat += 5) {
-      if (Math.abs(lat) > 60) {
-        points.push({ lat, lng });
-        intensity.push(0.6);
-      }
-    }
-  }
-  
-  // Generate a heat map based on the radiation data
-  Globe
-    .hexPolygonsData(countries.features)
-    .hexPolygonResolution(3)
-    .hexPolygonMargin(0.7)
-    .hexPolygonColor((feature) => {
-      // Get the center of the country
-      const [minLon, minLat, maxLon, maxLat] = feature.bbox;
-      const centerLat = (minLat + maxLat) / 2;
-      const centerLng = (minLon + maxLon) / 2;
-      
-      // Find closest point and its radiation intensity
-      let closestIntensity = 0;
-      let minDistance = Infinity;
-      
-      for (let i = 0; i < points.length; i++) {
-        const point = points[i];
-        const distance = Math.sqrt(
-          Math.pow(point.lat - centerLat, 2) + 
-          Math.pow(point.lng - centerLng, 2)
-        );
-        
-        if (distance < minDistance) {
-          minDistance = distance;
-          closestIntensity = intensity[i];
-        }
-      }
-      
-      // Adjust intensity based on real data levels
-      const adjustedIntensity = closestIntensity * (lowProtonLevel / 10);
-      
-      // Color based on radiation intensity
-      if (adjustedIntensity > 0.7) {
-        return `rgba(255, 0, 0, ${Math.min(0.8, adjustedIntensity)})`; // Red
-      } else if (adjustedIntensity > 0.4) {
-        return `rgba(255, 165, 0, ${Math.min(0.7, adjustedIntensity)})`; // Orange
-      } else if (adjustedIntensity > 0.2) {
-        return `rgba(255, 255, 0, ${Math.min(0.6, adjustedIntensity)})`; // Yellow
-      }
-      return `rgba(0, 255, 0, ${Math.min(0.5, Math.max(0.15, adjustedIntensity))}`; // Green
-    });
-  
-  // Add polar radiation streams
-  const polarPoints = [];
-  
-  for (let i = 0; i < 30; i++) {
-    const longitude = Math.random() * 360 - 180;
-    
-    // Create a stream of particles from the pole to lower latitudes
-    const points = [];
-    for (let lat = 90; lat >= 60; lat -= 1) {
-      const point = convertLatLonToXYZ(lat, longitude, Globe.getGlobeRadius() + (90 - lat) / 10);
-      points.push(point);
-    }
-    
-    const streamGeometry = new BufferGeometry().setFromPoints(points);
-    const streamMaterial = new LineBasicMaterial({
-      color: 0xff6600,
-      opacity: 0.3,
-      transparent: true
-    });
-    const stream = new LineLoop(streamGeometry, streamMaterial);
-    stream.userData.isAstronautTool = true;
-    globeGroup.add(stream);
-    
-    // Do the same for the south pole
-    const southPoints = [];
-    for (let lat = -90; lat <= -60; lat += 1) {
-      const point = convertLatLonToXYZ(lat, longitude, Globe.getGlobeRadius() + (90 + lat) / 10);
-      southPoints.push(point);
-    }
-    
-    const southStreamGeometry = new BufferGeometry().setFromPoints(southPoints);
-    const southStream = new LineLoop(southStreamGeometry, streamMaterial);
-    southStream.userData.isAstronautTool = true;
-    globeGroup.add(southStream);
-  }
-}
-
-function updateRadiationInfoPanel(latestData) {
-  const radiationInfo = document.getElementById('radiation-info');
-  if (!radiationInfo) return;
-  
-  // Get the radiation levels
-  const p1Value = latestData?.['P1'] || 10;
-  const p5Value = latestData?.['P5'] || 1;
-  const p7Value = latestData?.['P7'] || 0.1;
-  
-  // Determine the risk level
-  let riskLevel, riskColor;
-  if (p7Value > 1) {
-    riskLevel = "SEVERE";
-    riskColor = "#FF0000";
-  } else if (p5Value > 100) {
-    riskLevel = "HIGH";
-    riskColor = "#FF6600";
-  } else if (p1Value > 1000) {
-    riskLevel = "MODERATE";
-    riskColor = "#FFCC00";
-  } else {
-    riskLevel = "LOW";
-    riskColor = "#00FF00";
-  }
-  
-  // Format the time
-  const timeString = latestData?.['time_tag'] 
-    ? new Date(latestData['time_tag']).toLocaleString()
-    : new Date().toLocaleString();
-  
-  // Update the info panel with radiation data
-  radiationInfo.innerHTML = `
-    <div style="margin-bottom: 15px;">
-      <div style="font-weight: bold; margin-bottom: 5px;">Proton Flux Measurements:</div>
-      <div style="margin-bottom: 3px;"><span style="color: #aaa;">Low Energy (P1):</span> ${p1Value.toFixed(2)} pfu</div>
-      <div style="margin-bottom: 3px;"><span style="color: #aaa;">Medium Energy (P5):</span> ${p5Value.toFixed(2)} pfu</div>
-      <div style="margin-bottom: 3px;"><span style="color: #aaa;">High Energy (P7):</span> ${p7Value.toFixed(4)} pfu</div>
-    </div>
-    
-    <div style="margin-bottom: 8px;">
-      <span style="color: #aaa;">South Atlantic Anomaly:</span> Active
-    </div>
-    <div style="margin-bottom: 15px;">
-      <span style="color: #aaa;">Last Updated:</span> ${timeString}
-    </div>
-    
-    <div style="background-color: rgba(255, 153, 51, 0.2); padding: 10px; border-radius: 5px;">
-      <div style="font-weight: bold; margin-bottom: 5px;">EVA Risk Assessment</div>
-      <div>Current radiation level is <span style="color: ${riskColor};">${riskLevel}</span></div>
-      <div>${riskLevel === "LOW" || riskLevel === "MODERATE" 
-        ? "EVA permitted with standard shielding precautions" 
-        : "EVA not recommended without additional shielding"}</div>
-    </div>
-  `;
-}
-async function showCommSatellites() {
-  if (!window.astronautToolIntervals) {
-    window.astronautToolIntervals = [];
-  }
-  
-  // Create info panel
-  const verticalButton = document.getElementById("verticalButton");
-  if (verticalButton) {
-    verticalButton.innerHTML = `
-      <div style="color: #ffffff; font-family: 'Montserrat', sans-serif;">
-        <h3 style="color: #33ccff; margin-bottom: 15px; font-size: 18px; text-align: center;">
-          Communication Satellites
-        </h3>
-        
-        <div id="comm-sat-info" style="margin-top: 15px;">
-          <div style="margin-bottom: 10px;">Loading satellite data...</div>
-        </div>
-        
-        <div style="margin-top: 25px; font-size: 12px; color: #aaa;">
-          Real-time tracking of communication satellites for emergency contact.
-        </div>
-      </div>
-    `;
-  }
-  
-  try {
-    // List of key communication satellite constellations with NORAD IDs
-    const commSatellites = [
-      // Inmarsat satellites (for maritime and aviation communications)
-      { name: "INMARSAT 4-F1", id: 28628, color: 0x33ccff, type: "GEO" },
-      { name: "INMARSAT 5-F1", id: 39476, color: 0x33ccff, type: "GEO" },
-      
-      // Iridium satellites (global satellite phone service)
-      { name: "IRIDIUM 133", id: 43249, color: 0x3366ff, type: "LEO" },
-      { name: "IRIDIUM 153", id: 43569, color: 0x3366ff, type: "LEO" },
-      
-      // TDRS satellites (NASA's Tracking and Data Relay Satellites)
-      { name: "TDRS 12", id: 39504, color: 0xff3366, type: "GEO" },
-      { name: "TDRS 13", id: 41587, color: 0xff3366, type: "GEO" },
-      
-      // Starlink satellites (SpaceX)
-      { name: "STARLINK-1007", id: 44713, color: 0x33ff66, type: "LEO" },
-      { name: "STARLINK-1097", id: 47174, color: 0x33ff66, type: "LEO" }
-    ];
-    
-    // Create satellite objects and fetch TLE data
-    const satelliteObjects = [];
-    
-    for (const sat of commSatellites) {
-      try {
-        // Fetch TLE data from Celestrak
-        const response = await axios.get(`https://celestrak.org/NORAD/elements/gp.php?CATNR=${sat.id}&FORMAT=TLE`);
-        const tleData = response.data.trim().split('\n');
-        
-        if (tleData.length >= 3) {
-          // Create satellite object
-          const satelliteGeometry = new SphereGeometry(1, 8, 8);
-          const satelliteMaterial = new MeshBasicMaterial({ color: sat.color });
-          const satelliteMesh = new Mesh(satelliteGeometry, satelliteMaterial);
-          satelliteMesh.userData = { 
-            isAstronautTool: true,
-            satelliteName: sat.name,
-            satelliteId: sat.id
-          };
-          globeGroup.add(satelliteMesh);
-          
-          // Store satellite info
-          satelliteObjects.push({
-            mesh: satelliteMesh,
-            name: sat.name,
-            id: sat.id,
-            color: sat.color,
-            type: sat.type,
-            tle: [tleData[1], tleData[2]]
-          });
-          
-          // Create orbit path
-          const pathGeometry = new BufferGeometry();
-          const pathMaterial = new LineBasicMaterial({ 
-            color: sat.color, 
-            transparent: true, 
-            opacity: 0.3 
-          });
-          const orbitPath = new LineLoop(pathGeometry, pathMaterial);
-          orbitPath.userData.isAstronautTool = true;
-          globeGroup.add(orbitPath);
-          
-          // Generate and display orbit path
-          const orbitPoints = calculateOrbitPoints(tleData[1], tleData[2]);
-          pathGeometry.setFromPoints(orbitPoints);
-          
-          // Add field-of-view cone for GEO satellites
-          if (sat.type === "GEO") {
-            createCoverageArea(satelliteMesh, sat.color);
-          }
-        }
-      } catch (error) {
-        console.error(`Error fetching TLE data for ${sat.name}:`, error);
-      }
-    }
-    
-    // Update satellite positions every 10 seconds
-    async function updateCommSatPositions() {
-      const now = new Date();
-      
-      for (const sat of satelliteObjects) {
-        try {
-          // Calculate current position using satellite.js
-          const satrec = satellite.twoline2satrec(sat.tle[0], sat.tle[1]);
-          const positionAndVelocity = satellite.propagate(satrec, now);
-          const positionEci = positionAndVelocity.position;
-          
-          if (positionEci) {
-            // Convert ECI coordinates to geographic coordinates
-            const gmst = satellite.gstime(now);
-            const positionGd = satellite.eciToGeodetic(positionEci, gmst);
-            
-            // Get lat/long in degrees
-            const lat = satellite.degreesLat(positionGd.latitude);
-            const lng = satellite.degreesLong(positionGd.longitude);
-            const alt = positionGd.height;
-            
-            // Update mesh position on the globe
-            const position = convertLatLonToXYZ(lat, lng, Globe.getGlobeRadius() + (alt / 100));
-            sat.mesh.position.copy(position);
-            
-            // Update coverage area position if it's a GEO satellite
-            if (sat.type === "GEO" && sat.coverageMesh) {
-              sat.coverageMesh.position.copy(position);
-              sat.coverageMesh.lookAt(new Vector3(0, 0, 0));
-            }
-          }
-        } catch (error) {
-          console.error(`Error updating position for ${sat.name}:`, error);
-        }
-      }
-      
-      // Update info panel
-      const commSatInfo = document.getElementById('comm-sat-info');
-      if (commSatInfo) {
-        let infoHTML = `
-          <div style="font-size: 14px; margin-bottom: 15px;">
-            Active Communication Satellites
-          </div>
-        `;
-        
-        // Group satellites by constellation
-        const constellations = {
-          "INMARSAT": { name: "Inmarsat", color: "#33ccff", sats: [] },
-          "IRIDIUM": { name: "Iridium", color: "#3366ff", sats: [] },
-          "TDRS": { name: "TDRS (NASA)", color: "#ff3366", sats: [] },
-          "STARLINK": { name: "Starlink", color: "#33ff66", sats: [] }
-        };
-        
-        satelliteObjects.forEach(sat => {
-          // Determine which constellation this satellite belongs to
-          for (const key in constellations) {
-            if (sat.name.includes(key)) {
-              constellations[key].sats.push(sat);
-              break;
-            }
-          }
-        });
-        
-        // Display satellites grouped by constellation
-        for (const key in constellations) {
-          const constellation = constellations[key];
-          if (constellation.sats.length > 0) {
-            infoHTML += `
-              <div style="margin-bottom: 10px;">
-                <div style="font-weight: bold; color: ${constellation.color}; margin-bottom: 5px;">
-                  ${constellation.name} (${constellation.sats.length})
-                </div>
-                <div style="padding-left: 10px;">
-            `;
-            
-            constellation.sats.forEach(sat => {
-              infoHTML += `
-                <div style="font-size: 12px; margin-bottom: 3px;">
-                  ${sat.name} - ${sat.type}
-                </div>
-              `;
-            });
-            
-            infoHTML += `
-                </div>
-              </div>
-            `;
-          }
-        }
-        
-        infoHTML += `
-          <div style="margin-top: 15px; background-color: rgba(51, 204, 255, 0.2); padding: 10px; border-radius: 5px;">
-            <div style="font-weight: bold; margin-bottom: 5px;">Emergency Communications</div>
-            <div style="font-size: 12px; margin-bottom: 3px;">
-              <span style="color: #FF5722;">●</span> Iridium Network: Available
-            </div>
-            <div style="font-size: 12px; margin-bottom: 3px;">
-              <span style="color: #FF5722;">●</span> TDRS Uplink: Available
-            </div>
-            <div style="font-size: 12px; margin-top: 5px;">
-              <span style="color: #33ccff;">●</span> Contact Mission Control on <span style="color: #33ccff;">396.250 MHz</span>
-            </div>
-          </div>
-          
-          <div style="margin-top: 10px; font-size: 12px; color: #aaa;">
-            Last updated: ${now.toLocaleTimeString()}
-          </div>
-        `;
-        
-        commSatInfo.innerHTML = infoHTML;
-      }
-    }
-    
-    // Update positions immediately and then every 10 seconds
-    await updateCommSatPositions();
-    const intervalId = setInterval(updateCommSatPositions, 10000);
-    window.astronautToolIntervals.push(intervalId);
-    
-  } catch (error) {
-    console.error('Error initializing communication satellites:', error);
-    
-    // Show error in info panel
-    const commSatInfo = document.getElementById('comm-sat-info');
-    if (commSatInfo) {
-      commSatInfo.innerHTML = `
-        <div style="color: #FF6B6B;">
-          Error loading satellite data. Please try again later.
-        </div>
-      `;
-    }
-  }
-}
-
-function createCoverageArea(satelliteMesh, color) {
-  // Create a cone to represent satellite coverage area
-  const coneHeight = 20;
-  const coneGeometry = new CylinderGeometry(15, 0, coneHeight, 16, 1, true);
-  const coneMaterial = new MeshBasicMaterial({
-    color: color,
-    transparent: true,
-    opacity: 0.1,
-    side: DoubleSide
-  });
-  
-  const coverageMesh = new Mesh(coneGeometry, coneMaterial);
-  coverageMesh.userData.isAstronautTool = true;
-  coverageMesh.rotation.x = Math.PI;
-  
-  // Store reference to coverage mesh
-  satelliteMesh.userData.coverageMesh = coverageMesh;
-  
-  // Add to globe group
-  globeGroup.add(coverageMesh);
-  
-  return coverageMesh;
-}
-async function showEarthObservation() {
-  if (!window.astronautToolIntervals) {
-    window.astronautToolIntervals = [];
-  }
-  
-  // Create info panel
-  const verticalButton = document.getElementById("verticalButton");
-  if (verticalButton) {
-    verticalButton.innerHTML = `
-      <div style="color: #ffffff; font-family: 'Montserrat', sans-serif;">
-        <h3 style="color: #4CAF50; margin-bottom: 15px; font-size: 18px; text-align: center;">
-          Earth Observation System
-        </h3>
-        
-        <div id="earth-obs-info" style="margin-top: 15px;">
-          <div style="margin-bottom: 10px;">Loading Earth observation data...</div>
-        </div>
-        
-        <div style="margin-top: 25px; font-size: 12px; color: #aaa;">
-          Real-time Earth observation data from NASA EONET.
-        </div>
-      </div>
-    `;
-  }
-  
-  try {
-    // Fetch natural event data from NASA EONET API
-    const NASA_API_KEY = "jmRRPCUwwWyNaMrXJCNz8HDX8q94wPnQfKz0ig5a";
-    const response = await axios.get(`https://eonet.gsfc.nasa.gov/api/v3/events?api_key=${NASA_API_KEY}`);
-    const events = response.data.events;
-    
-    // Filter recent events (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const recentEvents = events.filter(event => {
-      const eventDate = new Date(event.geometry[0].date);
-      return eventDate >= thirtyDaysAgo;
-    });
-    
-    // Group events by category
-    const eventsByCategory = {};
-    recentEvents.forEach(event => {
-      const category = event.categories[0].title;
-      if (!eventsByCategory[category]) {
-        eventsByCategory[category] = [];
-      }
-      eventsByCategory[category].push(event);
-    });
-    
-    // Visualize events on the globe
-    let pointData = [];
-    Object.keys(eventsByCategory).forEach(category => {
-      const events = eventsByCategory[category];
-      
-      events.forEach(event => {
-        const geometry = event.geometry[0];
-        
-        // Only handle point data for now
-        if (geometry.type === "Point") {
-          const [lng, lat] = geometry.coordinates;
-          
-          // Determine color based on category
-          let color;
-          switch (category) {
-            case "Wildfires":
-              color = "#FF5722"; // Deep Orange
-              break;
-            case "Severe Storms":
-              color = "#0000FF"; // Blue
-              break;
-            case "Volcanoes":
-              color = "#FF0000"; // Red
-              break;
-            case "Sea and Lake Ice":
-              color = "#00BCD4"; // Cyan
-              break;
-            case "Drought":
-              color = "#FFC107"; // Amber
-              break;
-            case "Earthquakes":
-              color = "#673AB7"; // Deep Purple
-              break;
-            case "Floods":
-              color = "#2196F3"; // Blue
-              break;
-            default:
-              color = "#FFFFFF"; // White
-          }
-          
-          pointData.push({
-            lat,
-            lng,
-            color,
-            category,
-            title: event.title,
-            date: new Date(geometry.date).toLocaleDateString()
-          });
-        }
-      });
-    });
-    
-    // Add event markers to the globe
-    visualizeEarthEvents(pointData);
-    
-    // Update info panel with events summary
-    updateEarthObservationInfo(eventsByCategory);
-    
-    // Add Earth observation control grid
-    addEarthObservationGrid();
-    
-  } catch (error) {
-    console.error('Error fetching Earth observation data:', error);
-    
-    // Show error in info panel
-    const earthObsInfo = document.getElementById('earth-obs-info');
-    if (earthObsInfo) {
-      earthObsInfo.innerHTML = `
-        <div style="color: #FF6B6B;">
-          Error loading Earth observation data. Please try again later.
-        </div>
-      `;
-    }
-    
-    // Show simulated data
-    visualizeEarthEvents([]);
-  }
-}
-
-function visualizeEarthEvents(events) {
-  // Clear previous data
-  Globe.ringsData([]);
-  
-  // Configure rings for event visualization
-  Globe
-    .ringsData(events)
-    .ringColor('color')
-    .ringMaxRadius(3)
-    .ringPropagationSpeed(0.3)
-    .ringRepeatPeriod(2000)
-    .ringAltitude(0.01);
-  
-  // Add event labels
-  events.forEach(event => {
-    const position = convertLatLonToXYZ(event.lat, event.lng, Globe.getGlobeRadius() + 0.5);
-    
-    // Create label
-    const canvas = document.createElement("canvas");
-    canvas.width = 128;
-    canvas.height = 64;
-    const context = canvas.getContext("2d");
-    
-    // Draw text
-    context.fillStyle = event.color;
-    context.font = "Bold 14px Arial";
-    context.textAlign = "center";
-    context.fillText(event.category, canvas.width / 2, canvas.height / 2);
-
-    // Create sprite from canvas
-    const texture = new CanvasTexture(canvas);
-    const spriteMaterial = new SpriteMaterial({
-      map: texture,
-      transparent: true
-    });
-    const sprite = new Sprite(spriteMaterial);
-    sprite.position.copy(position);
-    sprite.scale.set(10, 5, 1);
-    sprite.userData = {
-      isAstronautTool: true,
-      eventData: event
-    };
-    
-    globeGroup.add(sprite);
-  });
-  
-  // Add hover functionality
-  const infoDiv = document.createElement('div');
-  infoDiv.id = 'event-hover-info';
-  infoDiv.style.position = 'absolute';
-  infoDiv.style.display = 'none';
-  infoDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-  infoDiv.style.color = '#fff';
-  infoDiv.style.padding = '10px';
-  infoDiv.style.borderRadius = '5px';
-  infoDiv.style.fontSize = '12px';
-  infoDiv.style.zIndex = '1000';
-  document.body.appendChild(infoDiv);
-  
-  // Add raycaster for hover detection
-  const raycaster = new Raycaster();
-  const mouse = new Vector2();
-  
-  function onMouseMove(event) {
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
-    
-    raycaster.setFromCamera(mouse, camera);
-    
-    const intersects = raycaster.intersectObjects(
-      globeGroup.children.filter(obj => obj instanceof Sprite && obj.userData?.eventData)
-    );
-    
-    if (intersects.length > 0) {
-      const event = intersects[0].object.userData.eventData;
-      
-      infoDiv.innerHTML = `
-        <div style="font-weight: bold; margin-bottom: 5px;">${event.title}</div>
-        <div>Category: ${event.category}</div>
-        <div>Date: ${event.date}</div>
-        <div>Location: ${event.lat.toFixed(2)}°, ${event.lng.toFixed(2)}°</div>
-      `;
-      
-      infoDiv.style.left = `${event.clientX + 10}px`;
-      infoDiv.style.top = `${event.clientY + 10}px`;
-      infoDiv.style.display = 'block';
-    } else {
-      infoDiv.style.display = 'none';
-    }
-  }
-  
-  window.addEventListener('mousemove', onMouseMove);
-  
-  // Store event listener for cleanup
-  window.earthObsMouseMoveListener = onMouseMove;
-}
-
-function updateEarthObservationInfo(eventsByCategory) {
-  const earthObsInfo = document.getElementById('earth-obs-info');
-  if (!earthObsInfo) return;
-  
-  let infoHTML = `
-    <div style="font-size: 14px; margin-bottom: 15px;">
-      Recent Earth Events (Last 30 Days)
-    </div>
-  `;
-  
-  // Add summary for each category
-  for (const category in eventsByCategory) {
-    const events = eventsByCategory[category];
-    let color;
-    
-    switch (category) {
-      case "Wildfires": color = "#FF5722"; break;
-      case "Severe Storms": color = "#0000FF"; break;
-      case "Volcanoes": color = "#FF0000"; break;
-      case "Sea and Lake Ice": color = "#00BCD4"; break;
-      case "Drought": color = "#FFC107"; break;
-      case "Earthquakes": color = "#673AB7"; break;
-      case "Floods": color = "#2196F3"; break;
-      default: color = "#FFFFFF";
-    }
-    
-    infoHTML += `
-      <div style="margin-bottom: 10px; display: flex; align-items: center;">
-        <div style="width: 12px; height: 12px; background-color: ${color}; margin-right: 8px; border-radius: 50%;"></div>
-        <div style="flex-grow: 1;">${category}</div>
-        <div style="font-weight: bold;">${events.length}</div>
-      </div>
-    `;
-  }
-  
-  // Add mission recommendations based on events
-  infoHTML += `
-    <div style="margin-top: 20px; background-color: rgba(76, 175, 80, 0.2); padding: 10px; border-radius: 5px;">
-      <div style="font-weight: bold; margin-bottom: 5px;">Mission Recommendations</div>
-      <div style="font-size: 12px; margin-bottom: 3px;">
-        <span style="color: #FF5722;">●</span> Monitor active wildfire regions
-      </div>
-      <div style="font-size: 12px; margin-bottom: 3px;">
-        <span style="color: #2196F3;">●</span> Track ongoing flood impacts
-      </div>
-      <div style="font-size: 12px;">
-        <span style="color: #FF0000;">●</span> Observe volcanic activity
-      </div>
-    </div>
-    
-    <div style="margin-top: 10px; font-size: 12px; color: #aaa;">
-      Last updated: ${new Date().toLocaleTimeString()}
-    </div>
-  `;
-  
-  earthObsInfo.innerHTML = infoHTML;
-}
-
-function addEarthObservationGrid() {
-  const globeRadius = Globe.getGlobeRadius();
-  
-  // Create latitude lines (parallels)
-  for (let lat = -80; lat <= 80; lat += 20) {
-    const points = [];
-    
-    for (let lng = -180; lng <= 180; lng += 5) {
-      const point = convertLatLonToXYZ(lat, lng, globeRadius + 0.1);
-      points.push(point);
-    }
-    
-    const geometry = new BufferGeometry().setFromPoints(points);
-    const material = new LineBasicMaterial({
-      color: 0x4CAF50,
-      transparent: true,
-      opacity: 0.2
-    });
-    const line = new LineLoop(geometry, material);
-    line.userData.isAstronautTool = true;
-    globeGroup.add(line);
-  }
-  
-  // Create longitude lines (meridians)
-  for (let lng = -180; lng < 180; lng += 20) {
-    const points = [];
-    
-    for (let lat = -90; lat <= 90; lat += 5) {
-      const point = convertLatLonToXYZ(lat, lng, globeRadius + 0.1);
-      points.push(point);
-    }
-    
-    const geometry = new BufferGeometry().setFromPoints(points);
-    const material = new LineBasicMaterial({
-      color: 0x4CAF50,
-      transparent: true,
-      opacity: 0.2
-    });
-    const line = new LineLoop(geometry, material);
-    line.userData.isAstronautTool = true;
-    globeGroup.add(line);
-  }
-}
-

@@ -11,7 +11,7 @@ const convertLatLonToXYZ = (lat, lon, radius) => {
     -radius * Math.sin(phi) * Math.cos(theta),
     radius * Math.cos(phi),
     radius * Math.sin(phi) * Math.sin(theta)
-  );
+   );
 };
 
 export const showCommSatellites = async (scene, globe, globeGroup, camera) => {
