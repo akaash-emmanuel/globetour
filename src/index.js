@@ -11,6 +11,9 @@ import axios from 'axios';
 import * as AstronautTools from './components/AstronautTools.js';
 import * as Moon from './components/Moon.js';
 import * as Sun from './components/Sun.js';
+import * as LunarOrbiter from './components/LunarOrbiter.js';
+import { createMercury, updateMercuryPosition } from './components/Mercury.js';
+import { createVenus, updateVenusPosition } from './components/Venus.js';
 
 // Import constants from Sun.js and Moon.js for camera positioning
 const SUN_RADIUS = 10; // Same as in Sun.js
@@ -22,6 +25,8 @@ let Globe;
 let globeGroup;
 let moon; // Reference to the moon object
 let sun; // Reference to the sun object
+let mercury; // Reference to the Mercury object
+let venus; // Reference to the Venus object
 let audio;
 let audioPlayed = false;
 let windowHalfX = window.innerWidth / 2;
@@ -38,20 +43,235 @@ let cameraFocus = 'earth'; // Current camera focus: 'earth', 'sun', or 'moon'
 // Initialize globals
 let currentTool = null;
 let toolCleanupFunction = null;
+let toggleButtonsContainer = null; // Container for toggle buttons
+// Global variable for the focus menu
+let focusMenuContent = null; // Menu content container for celestial bodies
 
-init();
-globeGroup = initGlobe();
-drawCountryBorders();
-addCountryLabels();
-addStars();
-shootingStars();
-prepareAmbientMusic();
-initSun(); // Initialize the sun
-initMoon(); // Initialize the moon
-onWindowResize();
-animate();
-createButtons();
-initAstronautTools(); // Initialize Astronaut Tools system
+// Function to update UI when focus changes
+function updateFocusButtonsUI() {
+  // Update button states based on current focus
+  const buttons = focusMenuContent.getElementsByTagName('button');
+  Array.from(buttons).forEach(button => {
+    const bodyName = button.textContent.split(' ')[1].toLowerCase();
+    if (bodyName === cameraFocus) {
+      button.style.backgroundColor = '#333';
+      button.style.borderColor = '#555';
+    } else {
+      button.style.backgroundColor = '#1a1a1a';
+      button.style.borderColor = '#333';
+    }
+  });
+
+  // Update wavelength selector visibility for sun
+  const wavelengthSelector = document.getElementById('wavelength-selector');
+  if (wavelengthSelector) {
+    wavelengthSelector.style.display = cameraFocus === 'sun' ? 'flex' : 'none';
+  }
+}
+
+function createCelestialMenu() {
+  // Create focus menu container with enhanced visibility
+  const focusMenu = document.createElement("div");
+  focusMenu.style.position = "absolute";
+  focusMenu.style.top = "20px";
+  focusMenu.style.right = "20px";
+  focusMenu.style.zIndex = "1000";
+  focusMenu.style.padding = "5px";
+  focusMenu.style.backgroundColor = "rgba(0, 0, 0, 0.4)";
+  focusMenu.style.borderRadius = "8px";
+  focusMenu.style.boxShadow = "0 0 10px rgba(255, 255, 255, 0.2)";
+
+  // Create focus menu hamburger button
+  const focusHamburger = document.createElement("div");
+  focusHamburger.style.cursor = "pointer";
+  focusHamburger.style.padding = "10px";
+  focusHamburger.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+  focusHamburger.style.borderRadius = "4px";
+  focusHamburger.style.border = "1px solid rgba(255, 255, 255, 0.3)";
+  focusHamburger.style.boxShadow = "0 0 5px rgba(255, 255, 255, 0.2)";
+  focusHamburger.innerHTML = `
+    <div style="width: 25px; height: 3px; background-color: white; margin: 5px 0;"></div>
+    <div style="width: 25px; height: 3px; background-color: white, margin: 5px 0;"></div>
+    <div style="width: 25px; height: 3px; background-color: white; margin: 5px 0;"></div>
+  `;
+  focusMenu.appendChild(focusHamburger);
+
+  // Create Focus Menu Content using global variable with animation properties
+  focusMenuContent = document.createElement("div");
+  focusMenuContent.style.position = "absolute";
+  focusMenuContent.style.top = "40px";
+  focusMenuContent.style.right = "0";
+  focusMenuContent.style.backgroundColor = "rgba(0, 0, 0, 0.9)";
+  focusMenuContent.style.borderRadius = "8px";
+  focusMenuContent.style.padding = "10px";
+  focusMenuContent.style.display = "none";
+  focusMenuContent.style.flexDirection = "column";
+  focusMenuContent.style.gap = "8px";
+  focusMenuContent.style.minWidth = "150px";
+  focusMenuContent.style.boxShadow = "0 4px 6px rgba(0, 0, 0, 0.3), 0 0 10px rgba(74, 144, 226, 0.3)";
+  focusMenuContent.style.border = "1px solid rgba(74, 144, 226, 0.3)";
+  focusMenuContent.style.transition = "opacity 0.2s ease-in-out, transform 0.2s ease-out";
+  focusMenuContent.style.opacity = "0";
+  focusMenuContent.style.transform = "translateY(-10px)";
+
+  // Add title to menu
+  const menuTitle = document.createElement('div');
+  menuTitle.textContent = 'Celestial Bodies';
+  menuTitle.style.color = '#4a90e2';
+  menuTitle.style.fontWeight = 'bold';
+  menuTitle.style.padding = '5px 10px';
+  menuTitle.style.borderBottom = '1px solid #333';
+  menuTitle.style.marginBottom = '5px';
+  focusMenuContent.appendChild(menuTitle);
+
+  // Define celestial bodies
+  const celestialBodies = [
+    { name: 'Earth', icon: '🌍', onclick: focusOnEarth },
+    { name: 'Sun', icon: '☀️', onclick: focusOnSun },
+    { name: 'Moon', icon: '🌕', onclick: focusOnMoon },
+    { name: 'Mercury', icon: '☿', onclick: focusOnMercury },
+    { name: 'Venus', icon: '♀', onclick: focusOnVenus }
+  ];
+
+  // Create buttons for each celestial body
+  celestialBodies.forEach(body => {
+    const button = document.createElement('button');
+    Object.assign(button.style, {
+      padding: '10px 15px',
+      backgroundColor: '#1a1a1a',
+      color: 'white',
+      border: '1px solid #333',
+      borderRadius: '6px',
+      cursor: 'pointer',
+      transition: 'all 0.3s ease',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      width: '100%'
+    });
+
+    button.innerHTML = `${body.icon} ${body.name}`;
+    button.addEventListener('click', () => {
+      body.onclick();
+      focusMenuContent.style.display = 'none';
+      updateFocusButtonsUI();
+    });
+
+    button.addEventListener('mouseover', () => {
+      button.style.backgroundColor = '#333';
+    });
+
+    button.addEventListener('mouseout', () => {
+      if (body.name.toLowerCase() !== cameraFocus) {
+        button.style.backgroundColor = '#1a1a1a';
+      }
+    });
+
+    focusMenuContent.appendChild(button);
+  });
+
+  focusMenu.appendChild(focusMenuContent);
+  document.body.appendChild(focusMenu);
+
+  // Toggle menu on hamburger click with improved handling
+  focusHamburger.addEventListener('click', (event) => {
+    event.stopPropagation(); // Prevent bubbling to document
+    const computedStyle = window.getComputedStyle(focusMenuContent);
+    const isDisplayNone = computedStyle.display === 'none' || focusMenuContent.style.display === '';
+    if (isDisplayNone) {
+      focusMenuContent.style.display = 'flex';
+      setTimeout(() => {
+        focusMenuContent.style.opacity = '1';
+        focusMenuContent.style.transform = 'translateY(0)';
+      }, 10);
+    } else {
+      focusMenuContent.style.opacity = '0';
+      setTimeout(() => {
+        focusMenuContent.style.display = 'none';
+      }, 200);
+    }
+  });
+
+  // Close menu when clicking outside with improved handling
+  document.addEventListener('click', (event) => {
+    if (window.getComputedStyle(focusMenuContent).display !== 'none') {
+      if (!focusMenu.contains(event.target)) {
+        focusMenuContent.style.opacity = '0';
+        setTimeout(() => {
+          focusMenuContent.style.display = 'none';
+        }, 200);
+      }
+    }
+  });
+
+  // Initial UI update
+  updateFocusButtonsUI();
+  
+  // Add debug overlay for celestial menu
+  const debugButton = document.createElement("button");
+  debugButton.textContent = "Debug Celestial Menu";
+  debugButton.style.position = "absolute";
+  debugButton.style.top = "20px";
+  debugButton.style.right = "80px";
+  debugButton.style.zIndex = "2000";
+  debugButton.style.padding = "5px";
+  debugButton.style.backgroundColor = "#333";
+  debugButton.style.color = "#fff";
+  debugButton.style.border = "1px solid #555";
+  debugButton.style.cursor = "pointer";
+  debugButton.style.display = "none"; // Hidden by default, enable for debugging
+  
+  debugButton.addEventListener("click", () => {
+    console.log("Celestial Menu Debug:");
+    console.log("- Display:", window.getComputedStyle(focusMenuContent).display);
+    console.log("- Opacity:", window.getComputedStyle(focusMenuContent).opacity);
+    console.log("- zIndex:", window.getComputedStyle(focusMenuContent).zIndex);
+    
+    // Toggle visibility
+    if (focusMenuContent.style.display === "none" || focusMenuContent.style.display === "") {
+      focusMenuContent.style.display = "flex";
+      focusMenuContent.style.opacity = "1";
+      focusMenuContent.style.transform = "translateY(0)";
+    } else {
+      focusMenuContent.style.display = "none";
+    }
+  });
+  
+  document.body.appendChild(debugButton);
+  
+  console.log("Celestial menu created successfully");
+}
+
+// Focus functions for celestial bodies
+function focusOnEarth() {
+  switchCameraFocus('earth');
+  focusMenuContent.style.display = 'none';
+  updateFocusButtonsUI();
+}
+
+function focusOnSun() {
+  switchCameraFocus('sun');
+  focusMenuContent.style.display = 'none';
+  updateFocusButtonsUI();
+}
+
+function focusOnMoon() {
+  switchCameraFocus('moon');
+  focusMenuContent.style.display = 'none';
+  updateFocusButtonsUI();
+}
+
+function focusOnMercury() {
+  switchCameraFocus('mercury');
+  focusMenuContent.style.display = 'none';
+  updateFocusButtonsUI();
+}
+
+function focusOnVenus() {
+  switchCameraFocus('venus');
+  focusMenuContent.style.display = 'none';
+  updateFocusButtonsUI();
+}
 
 function init() {
   renderer = new WebGLRenderer({ antialias: true });
@@ -61,12 +281,15 @@ function init() {
   document.body.style.margin = "0";
   document.body.style.padding = "0";
   document.body.style.overflow = "hidden";
+  
+  // Debug info
+  console.log("Initializing Globe Tour application...");
 
   scene = new Scene();
   scene.add(new AmbientLight(0xffffff, 0.3));    // set ambient lighting to the screen (scene), a tint of color branching from one point or all over
   scene.background = new Color(0x000000);        // black space color
 
-  camera = new PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 5000);   // set camera view with increased far plane
+  camera = new PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 30000);   // set camera view with increased far plane
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
 
@@ -110,24 +333,7 @@ function init() {
 
   window.addEventListener("resize", onWindowResize, false);
   window.addEventListener("mousemove", onMouseMove);
-
-  // Add event listeners for zooming
-
-  window.addEventListener("keydown", (event) => {
-    if (event.key === "+" || event.key === "=") {
-      // Zoom in
-      camera.position.z -= 40; // Adjust the zoom speed
-      if (camera.position.z < controls.minDistance) {
-        camera.position.z = controls.minDistance;
-      }
-    } else if (event.key === "-" || event.key === "_") {
-      // Zoom out
-      camera.position.z += 90; // Adjust the zoom speed
-      if (camera.position.z > controls.maxDistance) {
-        camera.position.z = controls.maxDistance;
-      }
-    }
-  });
+  createCelestialMenu(); // Add the new celestial bodies menu
 }
 function initGlobe() {
   const globeGroup = new Group();
@@ -241,21 +447,42 @@ function addCountryLabels() {
   });
 }
 function addStars() {
-  const starGeometry = new SphereGeometry(1.3, 24, 24);
+  const starGeometry = new SphereGeometry(3, 8, 8);
   const colors = [0x0000ff, 0xff0000, 0xffff00, 0xffffff, 0x00ff00];
+  
+  // Define multiple origin points for star clusters
+  const originPoints = [
+    {x: 0, y: 0, z: 0},              // Original center point
+    {x: -5000, y: 3000, z: 2000},    // New cluster point 1
+    {x: 6000, y: -2000, z: 4000},    // New cluster point 2
+    {x: -3000, y: -5000, z: -4000},  // New cluster point 3
+    {x: 7000, y: 5000, z: -3000},   // New cluster point 4
+    {x: 10000, y: 10000, z: 10000},    // Top-right-front octant
+    {x: -10000, y: -10000, z: -10000}, // Bottom-left-back octant
+    {x: 10000, y: -10000, z: 10000},   // Bottom-right-front octant
+    {x: -10000, y: 10000, z: -10000},  // Top-left-back octant
+    {x: -10000, y: 10000, z: 10000},   // Top-left-front octant
+    {x: 10000, y: -10000, z: -10000},
+  ];
 
-  for (let i = 0; i < 10000; i++) {
+  // Distribute the 20000 stars among these origin points
+  for (let i = 0; i < 20000; i++) {
     const starColor = colors[Math.floor(Math.random() * colors.length)];
     const starMaterial = new MeshBasicMaterial({ color: starColor });
     const star = new Mesh(starGeometry, starMaterial);
 
-    const distance = Math.random() * 4000 + 1500;
+    // Choose a random origin point for this star
+    const origin = originPoints[Math.floor(Math.random() * originPoints.length)];
+    
+    // Generate the star's position using spherical coordinates from the chosen origin
+    const distance = Math.random() * 10000 + 1500;
     const theta = Math.random() * Math.PI * 2;
     const phi = Math.random() * Math.PI;
 
-    star.position.x = distance * Math.sin(phi) * Math.cos(theta);
-    star.position.y = distance * Math.sin(phi) * Math.sin(theta);
-    star.position.z = distance * Math.cos(phi);
+    // Position relative to the chosen origin point - FIXED Z COORDINATE!
+    star.position.x = origin.x + distance * Math.sin(phi) * Math.cos(theta);
+    star.position.y = origin.y + distance * Math.sin(phi) * Math.sin(theta);
+    star.position.z = origin.z + distance * Math.cos(phi);  // This line was wrong
 
     scene.add(star);
   }
@@ -361,180 +588,248 @@ function onMouseMove(event) {
   mouseX = event.clientX - windowHalfX;
   mouseY = event.clientY - windowHalfY;
 }
-
-// Initialize the sun
 function initSun() {
   // Create the sun and add it to the scene
   sun = Sun.createSun(scene);
   
   // Add UI control for sun visibility
   addSunToggleButton();
+  
+  // Add UI control for sun wavelength selection
+  addSunWavelengthSelector();
 }
 
-// Initialize the moon
+// Add UI control for selecting SDO wavelength
+function addSunWavelengthSelector() {
+  const wavelengthContainer = document.createElement('div');
+  wavelengthContainer.style.position = 'absolute';
+  wavelengthContainer.style.bottom = '50px';
+  wavelengthContainer.style.left = '100px';
+  wavelengthContainer.style.padding = '8px';
+  wavelengthContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
+  wavelengthContainer.style.borderRadius = '4px';
+  wavelengthContainer.style.zIndex = '1000';
+  wavelengthContainer.style.display = 'flex';
+  wavelengthContainer.style.flexDirection = 'column';
+  wavelengthContainer.style.gap = '5px';
+  
+  // Label for the wavelength selector
+  const wavelengthLabel = document.createElement('div');
+  wavelengthLabel.textContent = 'SDO Wavelength:';
+  wavelengthLabel.style.color = 'white';
+  wavelengthLabel.style.fontWeight = 'bold';
+  wavelengthLabel.style.fontSize = '12px';
+  wavelengthLabel.style.marginBottom = '5px';
+  
+  // Select element for wavelength options
+  const wavelengthSelect = document.createElement('select');
+  wavelengthSelect.style.padding = '4px';
+  wavelengthSelect.style.backgroundColor = '#333';
+  wavelengthSelect.style.color = 'white';
+  wavelengthSelect.style.border = '1px solid #555';
+  wavelengthSelect.style.borderRadius = '3px';
+  wavelengthSelect.style.cursor = 'pointer';
+  
+  // Add wavelength options
+  const wavelengths = [
+    { value: '304', label: '304Å - Chromosphere (Red)' },
+    { value: '171', label: '171Å - Corona (Gold)' },
+    { value: '193', label: '193Å - Corona (Green)' },
+    { value: '211', label: '211Å - Corona (Purple)' },
+    { value: '131', label: '131Å - Flares (Blue)' },
+    { value: '335', label: '335Å - Active Regions (Blue)' },
+    { value: '094', label: '94Å - Solar Flares (Green)' },
+    { value: '1600', label: '1600Å - Photosphere/Transition Region' },
+    { value: '1700', label: '1700Å - Temperature Minimum (Pink)' }
+  ];
+  
+  wavelengths.forEach(wl => {
+    const option = document.createElement('option');
+    option.value = wl.value;
+    option.textContent = wl.label;
+    wavelengthSelect.appendChild(option);
+  });
+  
+  // Event listener for wavelength changes
+  wavelengthSelect.addEventListener('change', (event) => {
+    if (sun) {
+      const selectedWavelength = event.target.value;
+      Sun.changeSunWavelength(sun, selectedWavelength);
+    }
+  });
+  
+  // Add info icon and tooltip for educational context
+  const infoContainer = document.createElement('div');
+  infoContainer.style.display = 'flex';
+  infoContainer.style.alignItems = 'center';
+  infoContainer.style.marginTop = '5px';
+  
+  const infoIcon = document.createElement('span');
+  infoIcon.innerHTML = '&#9432;'; // Information icon
+  infoIcon.style.color = '#3498db';
+  infoIcon.style.marginRight = '5px';
+  infoIcon.style.cursor = 'pointer';
+  infoIcon.style.fontSize = '14px';
+  
+  const infoText = document.createElement('span');
+  infoText.textContent = 'Real-time Solar Dynamics Observatory imagery';
+  infoText.style.color = '#aaa';
+  infoText.style.fontSize = '11px';
+  
+  // Add tooltip showing what SDO wavelengths mean
+  infoIcon.addEventListener('mouseover', () => {
+    const tooltip = document.createElement('div');
+    tooltip.id = 'sdo-tooltip';
+    tooltip.style.position = 'absolute';
+    tooltip.style.bottom = '120px';
+    tooltip.style.left = '100px';
+    tooltip.style.width = '250px';
+    tooltip.style.padding = '10px';
+    tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    tooltip.style.color = 'white';
+    tooltip.style.borderRadius = '4px';
+    tooltip.style.fontSize = '12px';
+    tooltip.style.zIndex = '1010';
+    tooltip.style.lineHeight = '1.4';
+    
+    tooltip.innerHTML = `
+      <div style="font-weight: bold; margin-bottom: 5px;">NASA's Solar Dynamics Observatory (SDO)</div>
+      <div style="margin-bottom: 8px;">Different wavelengths reveal different layers of the Sun:</div>
+      <div style="margin-bottom: 4px;"><span style="color: #ff9e9e;">304Å</span> - Chromosphere and transition region</div>
+      <div style="margin-bottom: 4px;"><span style="color: #ffd700;">171Å</span> - Quiet corona, upper transition region</div>
+      <div style="margin-bottom: 4px;"><span style="color: #a1ffa1;">193Å</span> - Corona/hot flare plasma</div>
+      <div style="margin-bottom: 4px;"><span style="color: #c991ff;">211Å</span> - Active region corona</div>
+      <div style="margin-bottom: 8px;"><span style="color: #80c1ff;">131Å</span> - Flaring regions of the corona</div>
+      <div style="font-style: italic; font-size: 11px;">Images update automatically every 10 minutes</div>
+    `;
+    
+    document.body.appendChild(tooltip);
+  });
+  
+  infoIcon.addEventListener('mouseout', () => {
+    const tooltip = document.getElementById('sdo-tooltip');
+    if (tooltip) {
+      document.body.removeChild(tooltip);
+    }
+  });
+  
+  infoContainer.appendChild(infoIcon);
+  infoContainer.appendChild(infoText);
+  
+  // Add elements to container
+  wavelengthContainer.appendChild(wavelengthLabel);
+  wavelengthContainer.appendChild(wavelengthSelect);
+  wavelengthContainer.appendChild(infoContainer);
+  
+  // Only show when sun is visible and in focus
+  wavelengthContainer.style.display = 'none';
+  wavelengthContainer.id = 'wavelength-selector';
+  
+  document.body.appendChild(wavelengthContainer);
+}
 function initMoon() {
   // Get the Earth globe radius for proper scaling
   const globeRadius = Globe.getGlobeRadius();
   
   // Create the moon and add it to the scene
   moon = Moon.createMoon(scene, globeRadius);
-  
-  // Add UI control for moon visibility
-  addMoonToggleButton();
+}
+function initMercury() {
+  // Create Mercury and add it to the scene
+  mercury = createMercury(scene, sun);
 }
 
-// Add a button to toggle sun visibility
+function initVenus() {
+  // Create Venus and add it to the scene
+  venus = createVenus(scene, sun);
+}
 function addSunToggleButton() {
+  // Create a container for toggle buttons at the bottom
+  toggleButtonsContainer = document.createElement('div');
+  toggleButtonsContainer.style.position = 'absolute';
+  toggleButtonsContainer.style.bottom = '10px';
+  toggleButtonsContainer.style.left = '10px';
+  toggleButtonsContainer.style.display = 'flex';
+  toggleButtonsContainer.style.gap = '10px';
+  toggleButtonsContainer.style.zIndex = '1000';
+  document.body.appendChild(toggleButtonsContainer);
+
+  // Common button styles
+  const buttonStyle = {
+    padding: '8px 12px',
+    backgroundColor: '#444',
+    color: 'white',
+    border: '1px solid #666',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontWeight: 'bold'
+  };
+
+  // Create Sun toggle button
   const sunToggleButton = document.createElement('button');
   sunToggleButton.textContent = 'Sun: ON';
-  sunToggleButton.style.position = 'absolute';
-  sunToggleButton.style.bottom = '10px';
-  sunToggleButton.style.left = '100px';
-  sunToggleButton.style.padding = '8px 12px';
-  sunToggleButton.style.backgroundColor = '#444';
-  sunToggleButton.style.color = 'white';
-  sunToggleButton.style.border = '1px solid #666';
-  sunToggleButton.style.borderRadius = '4px';
-  sunToggleButton.style.cursor = 'pointer';
-  sunToggleButton.style.zIndex = '1000';
-  sunToggleButton.style.fontWeight = 'bold';
-  
-  // Add Earth orbit toggle button next to the sun button
+  Object.assign(sunToggleButton.style, buttonStyle);
+
+  // Create Earth orbit toggle button
   const earthOrbitToggle = document.createElement('button');
   earthOrbitToggle.textContent = 'Earth Orbit: ON';
-  earthOrbitToggle.style.position = 'absolute';
-  earthOrbitToggle.style.bottom = '10px';
-  earthOrbitToggle.style.left = '190px';
-  earthOrbitToggle.style.padding = '8px 12px';
-  earthOrbitToggle.style.backgroundColor = '#444';
-  earthOrbitToggle.style.color = 'white';
-  earthOrbitToggle.style.border = '1px solid #666';
-  earthOrbitToggle.style.borderRadius = '4px';
-  earthOrbitToggle.style.cursor = 'pointer';
-  earthOrbitToggle.style.zIndex = '1000';
-  earthOrbitToggle.style.fontWeight = 'bold';
-  
+  Object.assign(earthOrbitToggle.style, buttonStyle);
+
+  // Create Mercury orbit toggle button
+  const mercuryOrbitToggle = document.createElement('button');
+  mercuryOrbitToggle.textContent = 'Mercury Orbit: ON';
+  Object.assign(mercuryOrbitToggle.style, buttonStyle);
+
+  // Create Venus orbit toggle button
+  const venusOrbitToggle = document.createElement('button');
+  venusOrbitToggle.textContent = 'Venus Orbit: ON';
+  Object.assign(venusOrbitToggle.style, buttonStyle);
+
+  // Add buttons to toggle container
+  toggleButtonsContainer.appendChild(sunToggleButton);
+  toggleButtonsContainer.appendChild(earthOrbitToggle);
+  toggleButtonsContainer.appendChild(mercuryOrbitToggle);
+  toggleButtonsContainer.appendChild(venusOrbitToggle);
+
+  // Earth orbit toggle logic
   earthOrbitToggle.addEventListener('click', () => {
     isEarthOrbiting = !isEarthOrbiting;
     earthOrbitToggle.textContent = `Earth Orbit: ${isEarthOrbiting ? 'ON' : 'OFF'}`;
     earthOrbitToggle.style.backgroundColor = isEarthOrbiting ? '#444' : '#333';
     earthOrbitToggle.style.border = isEarthOrbiting ? '1px solid #666' : '1px solid #444';
-    
     // Reset Earth position when turning orbit off
     if (!isEarthOrbiting) {
       globeGroup.position.set(0, 0, 0);
     }
   });
-  
-  document.body.appendChild(earthOrbitToggle);
-  
-  // Add focus switching buttons
-  const focusButtonsContainer = document.createElement('div');
-  focusButtonsContainer.style.position = 'absolute';
-  focusButtonsContainer.style.bottom = '10px';
-  focusButtonsContainer.style.left = '320px';
-  focusButtonsContainer.style.display = 'flex';
-  focusButtonsContainer.style.gap = '10px';
-  focusButtonsContainer.style.zIndex = '1000';
-  
-  // Create focus button styles
-  const createFocusButton = (text, target) => {
-    const button = document.createElement('button');
-    button.textContent = `Focus: ${text}`;
-    button.setAttribute('data-target', target);
-    button.className = 'focus-button';
-    button.style.padding = '8px 12px';
-    button.style.backgroundColor = target === 'earth' ? '#0066cc' : '#444'; // Default focus is Earth
-    button.style.color = 'white';
-    button.style.border = target === 'earth' ? '1px solid #0099ff' : '1px solid #666';
-    button.style.borderRadius = '4px';
-    button.style.cursor = 'pointer';
-    button.style.fontWeight = target === 'earth' ? 'bold' : 'normal';
-    
-    button.addEventListener('click', () => {
-      switchCameraFocus(target);
-    });
-    
-    return button;
-  };
-  
-  // Add buttons for each celestial body
-  const earthFocusButton = createFocusButton('Earth', 'earth');
-  const moonFocusButton = createFocusButton('Moon', 'moon');
-  const sunFocusButton = createFocusButton('Sun', 'sun');
-  
-  focusButtonsContainer.appendChild(earthFocusButton);
-  focusButtonsContainer.appendChild(moonFocusButton);
-  focusButtonsContainer.appendChild(sunFocusButton);
-  
-  document.body.appendChild(focusButtonsContainer);
-  
-  // Add a system view button to zoom out and see the entire solar system
-  const systemViewButton = document.createElement('button');
-  systemViewButton.textContent = 'System View';
-  systemViewButton.style.position = 'absolute';
-  systemViewButton.style.bottom = '50px';
-  systemViewButton.style.left = '320px';
-  systemViewButton.style.padding = '8px 12px';
-  systemViewButton.style.backgroundColor = '#444';
-  systemViewButton.style.color = 'white';
-  systemViewButton.style.border = '1px solid #666';
-  systemViewButton.style.borderRadius = '4px';
-  systemViewButton.style.cursor = 'pointer';
-  systemViewButton.style.zIndex = '1000';
-  
-  systemViewButton.addEventListener('click', () => {
-    // Zoom out to see the entire system
-    gsap.to(camera.position, {
-      duration: 2,
-      x: 0,
-      y: 500, 
-      z: 2000,
-      onUpdate: () => {
-        camera.lookAt(0, 0, 0);
-      },
-      onComplete: () => {
-        cameraFocus = '';  // Clear focus when in system view
-        updateFocusButtonsUI();
-      }
-    });
+
+  // Mercury orbit toggle logic
+  window.isMercuryOrbiting = true;
+  mercuryOrbitToggle.addEventListener('click', () => {
+    window.isMercuryOrbiting = !window.isMercuryOrbiting;
+    mercuryOrbitToggle.textContent = `Mercury Orbit: ${window.isMercuryOrbiting ? 'ON' : 'OFF'}`;
+    mercuryOrbitToggle.style.backgroundColor = window.isMercuryOrbiting ? '#444' : '#333';
+    mercuryOrbitToggle.style.border = window.isMercuryOrbiting ? '1px solid #666' : '1px solid #444';
+    // Optionally reset Mercury position when turning orbit off
+    if (!window.isMercuryOrbiting && mercury) {
+      mercury.position.set(0, 0, 0);
+    }
   });
   
-  document.body.appendChild(systemViewButton);
-  
-  // Add a reset camera button
-  const resetCameraButton = document.createElement('button');
-  resetCameraButton.textContent = 'Reset Camera';
-  resetCameraButton.style.position = 'absolute';
-  resetCameraButton.style.bottom = '50px';
-  resetCameraButton.style.left = '430px';
-  resetCameraButton.style.padding = '8px 12px';
-  resetCameraButton.style.backgroundColor = '#444';
-  resetCameraButton.style.color = 'white';
-  resetCameraButton.style.border = '1px solid #666';
-  resetCameraButton.style.borderRadius = '4px';
-  resetCameraButton.style.cursor = 'pointer';
-  resetCameraButton.style.zIndex = '1000';
-  
-  resetCameraButton.addEventListener('click', () => {
-    // Reset to Earth focus with default position
-    gsap.to(camera.position, {
-      duration: 1.5,
-      x: globeGroup.position.x,
-      y: globeGroup.position.y,
-      z: globeGroup.position.z + 400,
-      onUpdate: () => {
-        camera.lookAt(globeGroup.position);
-      },
-      onComplete: () => {
-        cameraFocus = 'earth';
-        updateFocusButtonsUI();
-      }
-    });
+  // Venus orbit toggle logic
+  window.isVenusOrbiting = true;
+  venusOrbitToggle.addEventListener('click', () => {
+    window.isVenusOrbiting = !window.isVenusOrbiting;
+    venusOrbitToggle.textContent = `Venus Orbit: ${window.isVenusOrbiting ? 'ON' : 'OFF'}`;
+    venusOrbitToggle.style.backgroundColor = window.isVenusOrbiting ? '#444' : '#333';
+    venusOrbitToggle.style.border = window.isVenusOrbiting ? '1px solid #666' : '1px solid #444';
+    // Optionally reset Venus position when turning orbit off
+    if (!window.isVenusOrbiting && venus) {
+      venus.position.set(0, 0, 0);
+    }
   });
-  
-  document.body.appendChild(resetCameraButton);
-  
+
+  // Sun toggle button logic
   sunToggleButton.addEventListener('click', () => {
     if (sun) {
       const isVisible = Sun.toggleSunVisibility(sun);
@@ -546,35 +841,8 @@ function addSunToggleButton() {
   
   document.body.appendChild(sunToggleButton);
 }
-
-// Add a button to toggle moon visibility
-function addMoonToggleButton() {
-  const moonToggleButton = document.createElement('button');
-  moonToggleButton.textContent = 'Moon: ON';
-  moonToggleButton.style.position = 'absolute';
-  moonToggleButton.style.bottom = '10px';
-  moonToggleButton.style.left = '10px';
-  moonToggleButton.style.padding = '8px 12px';
-  moonToggleButton.style.backgroundColor = '#444';
-  moonToggleButton.style.color = 'white';
-  moonToggleButton.style.border = '1px solid #666';
-  moonToggleButton.style.borderRadius = '4px';
-  moonToggleButton.style.cursor = 'pointer';
-  moonToggleButton.style.zIndex = '1000';
-  moonToggleButton.style.fontWeight = 'bold';
-  
-  moonToggleButton.addEventListener('click', () => {
-    if (moon) {
-      const isVisible = Moon.toggleMoonVisibility(moon);
-      moonToggleButton.textContent = `Moon: ${isVisible ? 'ON' : 'OFF'}`;
-      moonToggleButton.style.backgroundColor = isVisible ? '#444' : '#333';
-      moonToggleButton.style.border = isVisible ? '1px solid #666' : '1px solid #444';
-    }
-  });
-  
-  document.body.appendChild(moonToggleButton);
-}
-
+// Moon toggle button removed
+// Mercury toggle button removed
 function animate() {
   const deltaTime = clock.getDelta(); // Get time since last frame
   
@@ -592,6 +860,28 @@ function animate() {
     Moon.updateMoonPosition(moon, globeGroup, deltaTime);
   }
   
+  // Update Mercury's position around the Sun
+  if (mercury && sun) {
+    if (window.isMercuryOrbiting) {
+      updateMercuryPosition(mercury, sun, deltaTime);
+    }
+  }
+  
+  // Update Venus's position around the Sun
+  if (venus && sun) {
+    if (window.isVenusOrbiting !== false) { // Default to true if not set
+      updateVenusPosition(venus, sun, deltaTime);
+    }
+  }
+
+  // Update LRO position if it exists
+  scene.traverse((object) => {
+    if (object.userData && object.userData.isLRO && moon) {
+      // Use the imported LunarOrbiter module
+      LunarOrbiter.updateLROPosition(object, moon, deltaTime);
+    }
+  });
+  
   // Update camera to follow moving objects when in focus
   updateCameraForMovingObjects();
   
@@ -599,13 +889,13 @@ function animate() {
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }
-
-// Function to adjust camera position to maintain view of moving celestial bodies
 function updateCameraForMovingObjects() {
   if (!cameraFocus || !controls.enabled) return;
   
-  // Calculate current distance from camera to target
-  const currentTarget = controls.target;
+  // Get current target position and ensure it's a Vector3
+  const currentTarget = controls.target.clone(); // Clone to ensure we have a Vector3
+  
+  // Get current distance from camera to target
   const currentDistance = camera.position.distanceTo(currentTarget);
   
   // Get target position based on focus
@@ -617,13 +907,17 @@ function updateCameraForMovingObjects() {
     targetPosition = moon.position.clone();
   } else if (cameraFocus === 'sun' && sun) {
     targetPosition = sun.position.clone();
+  } else if (cameraFocus === 'mercury' && mercury) {
+    targetPosition = mercury.position.clone();
+  } else if (cameraFocus === 'venus' && venus) {
+    targetPosition = venus.position.clone();
   }
   
   if (targetPosition) {
     // Update controls target to follow the object
     controls.target.copy(targetPosition);
     
-    // Maintain camera distance and relative orientation
+    // Calculate new camera position
     const cameraDirection = new Vector3().subVectors(camera.position, currentTarget).normalize();
     const newCameraPosition = targetPosition.clone().add(cameraDirection.multiplyScalar(currentDistance));
     
@@ -634,7 +928,6 @@ function updateCameraForMovingObjects() {
     camera.lookAt(targetPosition);
   }
 }
-
 function createButtons() {
   // Create Hamburger Menu
   const hamburgerMenu = document.createElement("div");
@@ -676,19 +969,7 @@ function createButtons() {
   earthquakeButton.style.cursor = "pointer";
   menuContent.appendChild(earthquakeButton);
 
-  // Create Population button
-  const populationButton = document.createElement("button");
-  populationButton.innerText = "Population";
-  populationButton.style.padding = "10px 20px";
-  populationButton.style.fontSize = "16px";
-  populationButton.style.backgroundColor = "#0c529c";
-  populationButton.style.color = "#ffffff";
-  populationButton.style.border = "none";
-  populationButton.style.borderRadius = "5px";
-  populationButton.style.cursor = "pointer";
-  menuContent.appendChild(populationButton);
-
-    // Create Astronaut Tools button
+  // Create Astronaut Tools button
   const astronautButton = document.createElement("button");
   astronautButton.innerText = "Astronaut Tools";
   astronautButton.style.padding = "10px 20px";
@@ -701,13 +982,21 @@ function createButtons() {
   menuContent.appendChild(astronautButton);
 
   astronautButton.addEventListener("click", () => {
+    // Stop any current animations and clear text
     stopCurrentAnimation();
     stopCurrentTypeWriter();
+    
+    // Clear any existing globe visualizations
     Globe.arcsData([]);
-    // Use the AstronautTools clearDebrisAndOrbits function with globeGroup parameter
     AstronautTools.clearDebrisAndOrbits(globeGroup);
+    
+    // Show the astronaut tools menu
     AstronautTools.showAstronautToolsMenu(scene, Globe, globeGroup, camera);
+    
+    // Hide the main menu once astronaut tools are opened
     menuContent.style.display = "none";
+    
+    console.log("Astronaut Tools menu initialized");
   });
 
   // Create Reset Button (keep at the end)
@@ -730,15 +1019,6 @@ function createButtons() {
     clearDebrisAndOrbits(); // Clear any existing visualizations
     addEarthquakeVisualization(); // Add the new earthquake visualization
     menuContent.style.display = "none"; // Close menu after click
-  });
-
-  // Add event listener for Population button
-  populationButton.addEventListener("click", async () => {
-    stopCurrentAnimation();
-    stopCurrentTypeWriter();
-    createVerticalButton();
-    await showPopulationVisualization();
-    menuContent.style.display = "none";
   });
 
   resetButton.addEventListener("click", () => {
@@ -1013,149 +1293,22 @@ async function addEarthquakeVisualization() {
     }
   }
 }
-async function fetchPopulationData() {
-  // Fallback data for major countries
-  
-
-  try {
-    // Try fetching from World Bank API
-    const response = await fetch('https://api.worldbank.org/v2/country/all/indicator/SP.POP.TOTL?format=json&per_page=300&date=2022');
-    const [metadata, data] = await response.json();
-
-    const populationData = {};
-    data.forEach(item => {
-      if (item.value) {
-        populationData[item.countryiso3code] = {
-          population: item.value,
-          name: item.country.value
-        };
-      }
-    });
-
-    return populationData;
-  } catch (error) {
-    console.log('Using fallback population data');
-    return fallbackData;
-  }
-}
-async function showPopulationVisualization() {
-  // Create loading indicator
-  const loadingDiv = document.createElement('div');
-  loadingDiv.id = 'populationLoadingDiv';
-  loadingDiv.style.position = 'absolute';
-  loadingDiv.style.top = '50%';
-  loadingDiv.style.left = '50%';
-  loadingDiv.style.transform = 'translate(-50%, -50%)';
-  loadingDiv.style.color = '#ffffff';
-  loadingDiv.style.fontSize = '20px';
-  loadingDiv.style.zIndex = '1000';
-  loadingDiv.innerHTML = 'Loading population data...';
-  document.body.appendChild(loadingDiv);
-
-  try {
-    const response = await fetch('https://api.worldbank.org/v2/country/all/indicator/SP.POP.TOTL?format=json&per_page=300&date=2022');
-    const [metadata, data] = await response.json();
-
-    // Process the data and update globe colors
-    const populationData = {};
-    data.forEach(item => {
-      if (item.value) {
-        populationData[item.countryiso3code] = item.value;
-      }
-    });
-
-    Globe
-      .polygonsData(countries.features)
-      .polygonCapColor((feature) => {
-        const countryCode = feature.properties.ISO_A3;
-        const population = populationData[countryCode];
-        return getPopulationColor(population);
-      })
-      .polygonSideColor(() => 'rgba(255, 255, 255, 0.3)')
-      .polygonStrokeColor(() => '#333333')
-      .polygonAltitude(0.01)
-      .polygonCapMaterial(new MeshPhongMaterial({
-        shininess: 50,
-        opacity: 0.95,
-        transparent: true,
-        side: DoubleSide
-      }))
-      .polygonsTransitionDuration(1000);
-
-    // Make sure the lighting is adequate
-    const ambientLight = new AmbientLight(0xffffff, 0.6);
-    scene.add(ambientLight);
-
-    const directionalLight = new DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(1, 1, 1);
-    scene.add(directionalLight);
-
-
-    // Update the vertical button with legend and explanation
-    const verticalButton = document.getElementById("verticalButton");
-    if (verticalButton) {
-      const explanationText = `
-    <div style="color: #ffffff; font-family: Arial, sans-serif;">
-        <h2 style="color: #FFD700; margin-bottom: 20px; text-align: center;">Population Legend</h2>
-        
-        <div style="margin: 25px 0;">
-            <div style="display: flex; align-items: center; margin: 15px 0;">
-                <div style="width: 25px; height: 25px; background-color: #0066ff; margin-right: 15px; border-radius: 4px;"></div>
-                <span>Very Low (< 1 million)</span>
-            </div>
-            <div style="display: flex; align-items: center; margin: 15px 0;">
-                <div style="width: 25px; height: 25px; background-color: #00ff44; margin-right: 15px; border-radius: 4px;"></div>
-                <span>Low (1-10 million)</span>
-            </div>
-            <div style="display: flex; align-items: center; margin: 15px 0;">
-                <div style="width: 25px; height: 25px; background-color: #ffff00; margin-right: 15px; border-radius: 4px;"></div>
-                <span>Medium (10-50 million)</span>
-            </div>
-            <div style="display: flex; align-items: center; margin: 15px 0;">
-                <div style="width: 25px; height: 25px; background-color: #ff8c00; margin-right: 15px; border-radius: 4px;"></div>
-                <span>High (50-200 million)</span>
-            </div>
-            <div style="display: flex; align-items: center; margin: 15px 0;">
-                <div style="width: 25px; height: 25px; background-color: #ff1a1a; margin-right: 15px; border-radius: 4px;"></div>
-                <span>Very High (> 200 million)</span>
-            </div>
-        </div>
-
-        <div style="margin-top: 25px; text-align: center; color: #888; font-size: 12px;">
-            Hover over countries to see exact population
-        </div>
-    </div>
-`;
-      typeWriter(explanationText, verticalButton);
-    }
-
-  } catch (error) {
-    console.error('Error loading population data:', error);
-    const verticalButton = document.getElementById("verticalButton");
-    if (verticalButton) {
-      verticalButton.innerHTML = 'Population density of countries around the world. It is calculated as the average number of people per square km.';
-    }
-  } finally {
-    // Remove loading indicator
-    const loadingElement = document.getElementById('populationLoadingDiv');
-    if (loadingElement) {
-      loadingElement.remove();
-    }
-  }
-}
-function getPopulationColor(population) {
-  if (!population) return '#1a1a1a'; // Darker gray for no data
-
-  // Using more saturated colors
-  if (population < 1000000) return '#0066ff';         // Brighter blue
-  if (population < 10000000) return '#00ff44';        // Vibrant green
-  if (population < 50000000) return '#ffff00';        // Bright yellow
-  if (population < 200000000) return '#ff8c00';       // Deep orange
-  return '#ff1a1a';                                   // Bright red
-}
+// Population visualization functionality has been removed as it was no longer needed
 function clearDebrisAndOrbits() {
   // Use the same implementation as in AstronautTools
   AstronautTools.clearDebrisAndOrbits(globeGroup);
+  
+  // Also reset global UI elements that might be affected
+  const verticalButton = document.getElementById("verticalButton");
+  if (verticalButton) {
+    verticalButton.innerHTML = '';
+  }
+  
+  // Remove astronaut tools menu if it exists
+  const astronautToolsMenu = document.getElementById("astronautToolsMenu");
+  if (astronautToolsMenu) {
+    astronautToolsMenu.remove();
+  }
 }
 function createVerticalButton() {
   if (document.getElementById("verticalButton")) return;
@@ -1166,188 +1319,22 @@ function createVerticalButton() {
   verticalButton.style.top = "50%";
   verticalButton.style.right = "20px";
   verticalButton.style.transform = "translateY(-50%)";
-  verticalButton.style.width = "180px";
-  verticalButton.style.height = "350px";
-  verticalButton.style.backgroundColor = "#333333";
-  verticalButton.style.borderRadius = "5px";
-  verticalButton.style.cursor = "default";
-  verticalButton.style.userSelect = "none";
+  verticalButton.style.width = "280px";
+  verticalButton.style.minHeight = "200px";
+  verticalButton.style.maxHeight = "70vh";
+  verticalButton.style.backgroundColor = "rgba(10, 20, 40, 0.85)";
+  verticalButton.style.borderRadius = "12px";
   verticalButton.style.padding = "20px";
   verticalButton.style.color = "#ffffff";
   verticalButton.style.fontFamily = "'Montserrat', sans-serif";
   verticalButton.style.fontSize = "14px";
   verticalButton.style.overflowY = "auto";
+  verticalButton.style.boxShadow = "0 0 15px rgba(0, 0, 0, 0.4)";
+  verticalButton.style.zIndex = "1000";
 
   document.body.appendChild(verticalButton);
+  return verticalButton;
 }
-function typeWriter(htmlContent, element, speed = 50) {
-  if (!element) return; // Guard clause to prevent errors
-
-  element.innerHTML = ''; // Clear existing content
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = htmlContent;
-  const nodes = tempDiv.childNodes;
-
-  let index = 0;
-  let charIndex = 0;
-
-  function type() {
-    if (index < nodes.length) {
-      const node = nodes[index];
-      if (node.nodeType === Node.TEXT_NODE) {
-        if (charIndex < node.textContent.length) {
-          element.innerHTML += node.textContent.charAt(charIndex);
-          charIndex++;
-          currentTypeWriter = setTimeout(type, speed);
-        } else {
-          charIndex = 0;
-          index++;
-          type();
-        }
-      } else if (node.nodeType === Node.ELEMENT_NODE) {
-        const newNode = node.cloneNode(true);
-        element.appendChild(newNode);
-        index++;
-        type();
-      }
-    }
-  }
-
-  type();
-}
-function stopCurrentAnimation() {
-  if (currentAnimation) {
-    clearTimeout(currentAnimation);
-    currentAnimation = null;
-  }
-}
-function stopCurrentTypeWriter() {
-  if (currentTypeWriter) {
-    clearTimeout(currentTypeWriter);
-    currentTypeWriter = null;
-  }
-}
-function initAstronautTools() {
-  // Initialize astronaut tools module without showing the menu
-  // The menu will only be shown when the button is clicked
-  console.log("Astronaut Tools module initialized");
-}
-function showAstronautToolsMenu() {
-  clearDebrisAndOrbits();
-  createVerticalButton();
-  
-  // Create the astronaut tools menu container
-  const astronautToolsMenu = document.createElement("div");
-  astronautToolsMenu.id = "astronautToolsMenu";
-  astronautToolsMenu.style.position = "absolute";
-  astronautToolsMenu.style.top = "50%";
-  astronautToolsMenu.style.left = "100px";
-  astronautToolsMenu.style.transform = "translateY(-50%)";
-  astronautToolsMenu.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
-  astronautToolsMenu.style.borderRadius = "10px";
-  astronautToolsMenu.style.padding = "20px";
-  astronautToolsMenu.style.display = "flex";
-  astronautToolsMenu.style.flexDirection = "column";
-  astronautToolsMenu.style.gap = "15px";
-  astronautToolsMenu.style.zIndex = "1000";
-  astronautToolsMenu.style.maxHeight = "70vh";
-  astronautToolsMenu.style.overflowY = "auto";
-  
-  document.body.appendChild(astronautToolsMenu);
-  
-  // Title for the tools menu
-  const title = document.createElement("h3");
-  title.innerText = "Astronaut Tools";
-  title.style.color = "#ffffff";
-  title.style.margin = "0 0 15px 0";
-  title.style.textAlign = "center";
-  title.style.fontFamily = "'Montserrat', sans-serif";
-  astronautToolsMenu.appendChild(title);
-  
-  // Add tool buttons
-  const tools = [
-    {
-      name: "ISS Tracker",
-      description: "Track the International Space Station in real-time",
-      function: showISSTracker
-    },
-    {
-      name: "Space Weather",
-      description: "Monitor space weather conditions that affect missions",
-      function: showSpaceWeatherMonitor
-    },
-    {
-      name: "Satellite Tracker",
-      description: "Track nearby satellites and space objects",
-      function: showSatelliteTracker
-    },
-    {
-      name: "Radiation Monitor",
-      description: "Monitor radiation levels across Earth's orbit",
-      function: showRadiationMonitor
-    },
-    {
-      name: "Communication Satellites",
-      description: "View communication satellites for emergency contact",
-      function: showCommSatellites
-    },
-    {
-      name: "Earth Observation",
-      description: "Access real-time Earth observation data",
-      function: showEarthObservation
-    }
-  ];
-  
-  tools.forEach(tool => {
-    const button = document.createElement("div");
-    button.style.backgroundColor = "#0c529c";
-    button.style.color = "#ffffff";
-    button.style.padding = "12px 15px";
-    button.style.borderRadius = "5px";
-    button.style.cursor = "pointer";
-    button.style.display = "flex";
-    button.style.flexDirection = "column";
-    button.style.transition = "all 0.3s ease";
-    
-    const buttonTitle = document.createElement("div");
-    buttonTitle.innerText = tool.name;
-    buttonTitle.style.fontWeight = "bold";
-    buttonTitle.style.marginBottom = "5px";
-    button.appendChild(buttonTitle);
-    
-    const buttonDescription = document.createElement("div");
-    buttonDescription.innerText = tool.description;
-    buttonDescription.style.fontSize = "12px";
-    buttonDescription.style.opacity = "0.8";
-    button.appendChild(buttonDescription);
-    
-    button.addEventListener("mouseover", () => {
-      button.style.backgroundColor = "#1a6bc2";
-    });
-    
-    button.addEventListener("mouseout", () => {
-      button.style.backgroundColor = "#0c529c";
-    });
-    
-    button.addEventListener("click", () => {
-      // Clear previous visualizations
-      clearAstronautTools();
-      
-      // Show loading indicator
-      showLoadingIndicator();
-      
-      // Call the function for this tool after a small delay
-      setTimeout(() => {
-        tool.function();
-        hideLoadingIndicator();
-      }, 100);
-    });
-    
-    astronautToolsMenu.appendChild(button);
-  });
-}
-
-// Function to switch camera focus between Earth, Moon, and Sun
 function switchCameraFocus(target, duration = 1.5) {
   if (!target) return;
   
@@ -1357,32 +1344,37 @@ function switchCameraFocus(target, duration = 1.5) {
   // Store previous focus for transition effect
   const previousFocus = cameraFocus;
   
+  // Toggle wavelength selector visibility based on focus
+  const wavelengthSelector = document.getElementById('wavelength-selector');
+  if (wavelengthSelector) {
+    wavelengthSelector.style.display = target === 'sun' ? 'flex' : 'none';
+  }
+  
   switch(target) {
     case 'sun':
       if (!sun) return;
-      // Position the camera to get a good view of the sun
+      // Use the sun's radius to keep the camera outside the sun
+      const sunRadius = sun.geometry && sun.geometry.parameters && sun.geometry.parameters.radius ? sun.geometry.parameters.radius : 10;
+      const sunDistance = sunRadius * 4; // 4x radius away from center
       targetPosition = new Vector3(
-        sun.position.x - 50, 
-        sun.position.y + 20, 
-        sun.position.z + 50
+        sun.position.x - sunDistance,
+        sun.position.y + sunRadius * 0.5,
+        sun.position.z + sunDistance
       );
       lookAtPosition = sun.position.clone();
       cameraFocus = 'sun';
-      
       // Disable orbit controls temporarily during transition
       controls.enabled = false;
-      
       // Adjust control limits for sun viewing (allow more distance)
-      controls.minDistance = 30;
-      controls.maxDistance = 500;
+      controls.minDistance = sunRadius * 1.2;
+      controls.maxDistance = sunRadius * 20;
       break;
       
     case 'moon':
       if (!moon) return;
       // Calculate distance from moon based on its size
       const moonRadius = moon.geometry.parameters.radius;
-      distanceFactor = 20; // Get closer to the moon but not too close
-      
+      distanceFactor = 2; // Get much closer to the moon
       targetPosition = new Vector3(
         moon.position.x - moonRadius * distanceFactor,
         moon.position.y + moonRadius * distanceFactor * 0.5,
@@ -1390,23 +1382,55 @@ function switchCameraFocus(target, duration = 1.5) {
       );
       lookAtPosition = moon.position.clone();
       cameraFocus = 'moon';
-      
       // Disable orbit controls temporarily during transition
       controls.enabled = false;
-      
       // Adjust control limits for moon viewing
-      controls.minDistance = moonRadius * 5;
-      controls.maxDistance = moonRadius * 50;
+      controls.minDistance = moonRadius * 0.5;
+      controls.maxDistance = moonRadius * 20;
+      break;
+      
+    case 'mercury':
+      if (!mercury) return;
+      // Calculate distance from mercury based on its size
+      const mercuryRadius = mercury.geometry && mercury.geometry.parameters && mercury.geometry.parameters.radius ? mercury.geometry.parameters.radius : 2;
+      distanceFactor = 2; // Get much closer to Mercury
+      targetPosition = new Vector3(
+        mercury.position.x - mercuryRadius * distanceFactor,
+        mercury.position.y + mercuryRadius * distanceFactor * 0.5,
+        mercury.position.z + mercuryRadius * distanceFactor
+      );
+      lookAtPosition = mercury.position.clone();
+      cameraFocus = 'mercury';
+      controls.enabled = false;
+      controls.minDistance = mercuryRadius * 0.5;
+      controls.maxDistance = mercuryRadius * 20;
+      break;
+      
+    case 'venus':
+      if (!venus) return;
+      // Calculate distance from venus based on its size
+      const venusRadius = venus.geometry && venus.geometry.parameters && venus.geometry.parameters.radius ? venus.geometry.parameters.radius : 2;
+      distanceFactor = 2; // Get much closer to Venus
+      targetPosition = new Vector3(
+        venus.position.x - venusRadius * distanceFactor,
+        venus.position.y + venusRadius * distanceFactor * 0.5,
+        venus.position.z + venusRadius * distanceFactor
+      );
+      lookAtPosition = venus.position.clone();
+      cameraFocus = 'venus';
+      controls.enabled = false;
+      controls.minDistance = venusRadius * 0.5;
+      controls.maxDistance = venusRadius * 20;
       break;
       
     case 'earth':
     default:
-      // Get a good view of Earth
+      // Get a closer view of Earth
       const globeRadius = Globe.getGlobeRadius();
       targetPosition = new Vector3(
         globeGroup.position.x,
         globeGroup.position.y + globeRadius * 0.5,
-        globeGroup.position.z + globeRadius * 4
+        globeGroup.position.z + globeRadius * 0.5 // was *4, now *2 for closer view
       );
       lookAtPosition = globeGroup.position.clone();
       cameraFocus = 'earth';
@@ -1479,63 +1503,6 @@ function switchCameraFocus(target, duration = 1.5) {
   // Update the focus buttons
   updateFocusButtonsUI();
 }
-
-// Function to update the UI of focus buttons
-function updateFocusButtonsUI() {
-  const focusButtons = document.querySelectorAll('.focus-button');
-  
-  focusButtons.forEach(button => {
-    const target = button.getAttribute('data-target');
-    
-    // Apply styling based on current focus
-    if (target === cameraFocus) {
-      // Highlighted styling for active focus
-      button.style.backgroundColor = '#0066cc';
-      button.style.border = '2px solid #0099ff';
-      button.style.fontWeight = 'bold';
-      button.style.boxShadow = '0 0 8px rgba(0, 153, 255, 0.7)';
-      button.style.transform = 'scale(1.05)';
-      button.style.transition = 'all 0.3s ease';
-      
-      // Update the text to show it's the current focus
-      button.textContent = `Focused: ${target.charAt(0).toUpperCase() + target.slice(1)}`;
-    } else {
-      // Normal styling for inactive focus
-      button.style.backgroundColor = '#444';
-      button.style.border = '1px solid #666';
-      button.style.fontWeight = 'normal';
-      button.style.boxShadow = 'none';
-      button.style.transform = 'scale(1)';
-      button.style.transition = 'all 0.3s ease';
-      
-      // Reset text
-      button.textContent = `Focus: ${target.charAt(0).toUpperCase() + target.slice(1)}`;
-    }
-  });
-  
-  // Also update the System View button if applicable
-  let systemViewButton = null;
-  
-  // Find the System View button by its text content
-  document.querySelectorAll('button').forEach(button => {
-    if (button.textContent === 'System View') {
-      systemViewButton = button;
-    }
-  });
-  
-  if (systemViewButton && !cameraFocus) {
-    systemViewButton.style.backgroundColor = '#0066cc';
-    systemViewButton.style.border = '2px solid #0099ff';
-    systemViewButton.style.fontWeight = 'bold';
-    systemViewButton.style.boxShadow = '0 0 8px rgba(0, 153, 255, 0.7)';
-  } else if (systemViewButton) {
-    systemViewButton.style.backgroundColor = '#444';
-    systemViewButton.style.border = '1px solid #666';
-    systemViewButton.style.fontWeight = 'normal';
-    systemViewButton.style.boxShadow = 'none';
-  }
-}
-
 function clearAstronautTools() {
   // Clear any existing astronaut tool visualizations
   Globe.ringsData([]);
@@ -1549,19 +1516,15 @@ function clearAstronautTools() {
     !child.userData?.isAstronautTool
   );
   
-  // Clear any existing interval timers
-  if (window.astronautToolIntervals) {
-    window.astronautToolIntervals.forEach(interval => clearInterval(interval));
-    window.astronautToolIntervals = [];
+  // Reset menu and UI elements
+  const menuContainer = document.getElementById('astronaut-tools-menu');
+  if (menuContainer) {
+    document.body.removeChild(menuContainer);
   }
   
-  // Clear information panel content
-  const verticalButton = document.getElementById("verticalButton");
-  if (verticalButton) {
-    verticalButton.innerHTML = '';
-  }
+  // Update focus UI to reflect changes
+  updateFocusButtonsUI();
 }
-
 function showLoadingIndicator() {
   const loadingDiv = document.createElement('div');
   loadingDiv.id = 'loadingIndicator';
@@ -1570,15 +1533,15 @@ function showLoadingIndicator() {
   loadingDiv.style.left = '50%';
   loadingDiv.style.transform = 'translate(-50%, -50%)';
   loadingDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+
   loadingDiv.style.color = '#ffffff';
   loadingDiv.style.padding = '20px 40px';
   loadingDiv.style.borderRadius = '10px';
-  loadingDiv.style.fontSize = '18px';
+   loadingDiv.style.fontSize = '18px';
   loadingDiv.style.zIndex = '2000';
   loadingDiv.innerHTML = 'Loading data...';
   document.body.appendChild(loadingDiv);
 }
-
 function hideLoadingIndicator() {
   const loadingElement = document.getElementById('loadingIndicator');
   if (loadingElement) {
@@ -1596,6 +1559,9 @@ async function showISSTracker() {
   const iss = new Mesh(issGeometry, issMaterial);
   iss.userData.isAstronautTool = true;
   globeGroup.add(iss);
+  
+  
+
   
   // Create ISS path visualization
   const pathPoints = [];
@@ -1781,12 +1747,12 @@ async function showSpaceWeatherMonitor() {
       return {
         lat: randomLat,
         lng: randomLon,
-        color: '#FF5733',
+               color: '#FF5733',
         maxR: 5,
         propagationSpeed: 0.5,
         repeatPeriod: 2000
       };
-    });
+       });
     
     // Apply visualizations
     Globe.arcsData(arcsData);
@@ -1852,6 +1818,8 @@ async function showSpaceWeatherMonitor() {
   } catch (error) {
     console.error('Error fetching space weather data:', error);
     
+   
+    
     // Show error in info panel
     const spaceWeatherInfo = document.getElementById('space-weather-info');
     if (spaceWeatherInfo) {
@@ -1863,7 +1831,6 @@ async function showSpaceWeatherMonitor() {
     }
   }
 }
-
 function visualizeMagneticField() {
   const globeRadius = Globe.getGlobeRadius();
   const northPole = convertLatLonToXYZ(90, 0, globeRadius);
@@ -1895,7 +1862,6 @@ function visualizeMagneticField() {
     globeGroup.add(line);
   }
 }
-
 function visualizeRadiationBelts() {
   const globeRadius = Globe.getGlobeRadius();
   
@@ -2105,4 +2071,116 @@ async function showSatelliteTracker() {
       `;
     }
   }
+}
+function addMercuryFocusButton() {
+  const mercuryFocusButton = document.createElement('button');
+  mercuryFocusButton.className = 'focus-button';
+  mercuryFocusButton.setAttribute('data-target', 'mercury');
+  mercuryFocusButton.textContent = 'Focus: Mercury';
+  mercuryFocusButton.style.position = 'absolute';
+  mercuryFocusButton.style.top = '50px';
+  mercuryFocusButton.style.left = '350px';
+  mercuryFocusButton.style.padding = '8px 12px';
+  mercuryFocusButton.style.backgroundColor = '#444';
+  mercuryFocusButton.style.color = 'white';
+  mercuryFocusButton.style.border = '1px solid #666';
+  mercuryFocusButton.style.borderRadius = '4px';
+  mercuryFocusButton.style.cursor = 'pointer';
+  mercuryFocusButton.style.zIndex = '1000';
+  
+  mercuryFocusButton.addEventListener('click', () => {
+    cameraFocus = 'mercury';
+    updateFocusButtonsUI();
+  });
+  
+  document.body.appendChild(mercuryFocusButton);
+}
+
+function addVenusFocusButton() {
+  const venusFocusButton = document.createElement('button');
+  venusFocusButton.className = 'focus-button';
+  venusFocusButton.setAttribute('data-target', 'venus');
+  venusFocusButton.textContent = 'Focus: Venus';
+  venusFocusButton.style.position = 'absolute';
+  venusFocusButton.style.top = '50px';
+  venusFocusButton.style.left = '500px';
+  venusFocusButton.style.padding = '8px 12px';
+  venusFocusButton.style.backgroundColor = '#444';
+  venusFocusButton.style.color = 'white';
+  venusFocusButton.style.border = '1px solid #666';
+  venusFocusButton.style.borderRadius = '4px';
+  venusFocusButton.style.cursor = 'pointer';
+  venusFocusButton.style.zIndex = '1000';
+  
+  venusFocusButton.addEventListener('click', () => {
+    cameraFocus = 'venus';
+    updateFocusButtonsUI();
+  });
+  
+  document.body.appendChild(venusFocusButton);
+}
+
+// Helper functions for animations
+function stopCurrentAnimation() {
+  if (currentAnimation) {
+    clearTimeout(currentAnimation);
+    currentAnimation = null;
+  }
+}
+
+function stopCurrentTypeWriter() {
+  if (currentTypeWriter) {
+    clearTimeout(currentTypeWriter);
+    currentTypeWriter = null;
+  }
+}
+
+// Initialize everything
+init();
+globeGroup = initGlobe();
+drawCountryBorders();
+addCountryLabels();
+addStars();
+shootingStars();
+prepareAmbientMusic();
+initSun(); // Initialize the sun first
+initMercury(); // Initialize Mercury after sun
+initVenus(); // Initialize Venus after Mercury
+initMoon(); // Initialize the moon
+createCelestialMenu(); // Create menu after celestial bodies are initialized
+onWindowResize();
+animate();
+createButtons();
+initAstronautTools(); // Initialize Astronaut Tools system
+
+function initAstronautTools() {
+  // Initialize global collection for tracking interval IDs
+  window.astronautToolIntervals = window.astronautToolIntervals || [];
+  
+  // Initialize global variables for tracking active tools
+  window.activeAstronautTool = null;
+  window.currentToolCleanup = null;
+  
+  // Add global cleanup function to window for access from any component
+  window.clearAstronautTools = () => {
+    // Clean up any active tool
+    if (window.currentToolCleanup && typeof window.currentToolCleanup === 'function') {
+      window.currentToolCleanup();
+      window.currentToolCleanup = null;
+    }
+    
+    // Clear all intervals
+    if (window.astronautToolIntervals && window.astronautToolIntervals.length > 0) {
+      window.astronautToolIntervals.forEach(interval => clearInterval(interval));
+      window.astronautToolIntervals = [];
+    }
+    
+    // Clear active tool reference
+    window.activeAstronautTool = null;
+  };
+  
+  // Set up astronaut tools system
+  console.log('Astronaut Tools system initialized');
+  
+  // No need to do anything else at startup - tools are activated on demand via the menu
 }

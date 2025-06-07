@@ -165,12 +165,11 @@ const showAstronautToolsMenu = (scene, globe, globeGroup, camera) => {
   // Diagnose axios to ensure it's working properly
   diagnoseAxios();
   
-  // Call clearDebrisAndOrbits here if it's intended to run when the menu is shown
-  // clearDebrisAndOrbits(globeGroup); 
-  // ^^^ NB: This was here, but it might be better to call it from index.js if that's where the main setup occurs.
-  // Or, ensure it's called before any new tool that might add debris/orbits.
-  // For now, I'll ensure it's defined and exported. The calling logic might need review.
-
+  // Clear any existing astronaut tools before showing the menu
+  clearAstronautTools(globe, globeGroup);
+  clearDebrisAndOrbits(globeGroup);
+  
+  // Create the vertical info panel
   createVerticalButton();
   
   // Create the astronaut tools menu container
@@ -215,6 +214,12 @@ const showAstronautToolsMenu = (scene, globe, globeGroup, camera) => {
         const arToggleButton = document.getElementById("ar-toggle-button");
         if (arToggleButton) arToggleButton.remove();
       }
+    },
+    {
+      name: "Lunar Reconnaissance Orbiter",
+      description: "Visualize LRO orbiting the Moon with live data",
+      function: () => showLunarOrbiterLive(scene, globe, globeGroup, camera),
+      highlight: false
     },
     {
       name: "ISS Tracker",
@@ -284,20 +289,33 @@ const showAstronautToolsMenu = (scene, globe, globeGroup, camera) => {
     
     button.addEventListener("click", () => {
       // Clear previous visualizations and call cleanup for the PREVIOUS tool
-      if (window.currentToolCleanup) {
+      if (window.currentToolCleanup && typeof window.currentToolCleanup === 'function') {
         window.currentToolCleanup();
       }
-      clearAstronautTools(globeGroup, globe); // General cleanup that clears common elements
+      
+      // Clear the globe from any existing astronaut tools
+      clearAstronautTools(globe, globeGroup);
 
       // Show loading indicator
       showLoadingIndicator();
+      
+      // Keep track of current active tool
+      window.activeAstronautTool = tool.name;
 
       // Call the function for this tool after a small delay
       setTimeout(() => {
-        tool.function();
+        try {
+          const cleanupFunction = tool.function();
+          // If the tool returns a cleanup function, store it
+          if (cleanupFunction && typeof cleanupFunction === 'function') {
+            window.currentToolCleanup = cleanupFunction;
+          } else if (tool.cleanup && typeof tool.cleanup === 'function') {
+            window.currentToolCleanup = tool.cleanup;
+          }
+        } catch (error) {
+          console.error(`Error activating ${tool.name}:`, error);
+        }
         hideLoadingIndicator();
-        // Set the cleanup function for the NEWLY selected tool
-        window.currentToolCleanup = tool.cleanup;
       }, 100);
     });
 
@@ -305,53 +323,8 @@ const showAstronautToolsMenu = (scene, globe, globeGroup, camera) => {
   });
 };
 
-const clearAstronautTools = (globeGroup, globe) => {
-  // Clear any existing astronaut tool visualizations
-  globe.ringsData([]);
-  globe.arcsData([]);
-
-  // Clear custom meshes and objects
-  // Ensure this doesn't remove the globe itself or other essential scene elements
-  globeGroup.children = globeGroup.children.filter(child =>
-    !child.userData?.isAstronautTool && 
-    !child.userData?.isSituationalAwarenessTool &&
-    !child.userData?.isMissionPlannerElement // Added check for mission planner elements
-  );
-
-  // Clear any existing interval timers
-  if (window.astronautToolIntervals) {
-    window.astronautToolIntervals.forEach(interval => clearInterval(interval));
-    window.astronautToolIntervals = [];
-  }
-  if (window.missionPlannerIntervals) { // Clear mission planner specific intervals
-    window.missionPlannerIntervals.forEach(clearInterval);
-    window.missionPlannerIntervals = [];
-  }
-
-  // Clear information panel content (verticalButton)
-  const verticalButton = document.getElementById("verticalButton");
-  if (verticalButton) {
-    verticalButton.innerHTML = ''; // Clear its content specifically
-  }
-
-  // Remove other specific UI elements if they exist.
-  // Note: Individual tool cleanup functions (like cleanupMissionPlanner or SSA specific cleanup)
-  // are now called via window.currentToolCleanup before this general cleanup.
-  // So, explicit removal here might be redundant if tools manage their own UI elements properly.
-  // However, keeping some common ones as a fallback or for tools without specific cleanup.
-  const missionPlannerPanel = document.getElementById("mission-planner-panel");
-  if (missionPlannerPanel) {
-    missionPlannerPanel.remove();
-  }
-  const spaceSaHud = document.getElementById("space-sa-hud");
-  if (spaceSaHud) {
-    spaceSaHud.remove();
-  }
-  const arToggleButton = document.getElementById("ar-toggle-button");
-  if (arToggleButton) {
-    arToggleButton.remove();
-  }
-};
+// Import the shared cleanup function
+import { clearAstronautTools } from './clearAstronautTools.js';
 
 // Function to clear debris and orbits
 const clearDebrisAndOrbits = (globeGroup) => {
@@ -374,11 +347,13 @@ import { showRadiationMonitor } from './RadiationMonitor.js';
 import { showCommSatellites } from './EmergencyResponseSystem.js';
 import { showEarthObservation } from './EarthObservationPlanner.js';
 import { showSpaceSituationalAwareness } from './SpaceSituationalAwareness.js';
+import { showLunarOrbiterLive } from './LunarOrbiter.js';
 
 // Export all necessary functions
 export {
   showAstronautToolsMenu,
   clearDebrisAndOrbits,
+  clearAstronautTools,
   createVerticalButton,
   diagnoseAxios,
   showLoadingIndicator,

@@ -33,42 +33,62 @@ export const createMoon = (scene, globeRadius) => {
   
   // Load high-quality moon texture for better realism
   const textureLoader = new TextureLoader();
-  textureLoader.load(
-    // URL to high-quality moon texture from NASA
-    'https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/lroc_color_poles_1k.jpg',
-    // onLoad callback
-    (texture) => {
-      moonMaterial.map = texture;
-      
-      // Also load a bump map for realistic terrain
-      textureLoader.load(
-        'https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/ldem_3_8bit_1k.jpg',
-        (bumpMap) => {
-          moonMaterial.bumpMap = bumpMap;
-          moonMaterial.bumpScale = 0.3;
-          moonMaterial.needsUpdate = true;
-        },
-        undefined,
-        (err) => console.error('Error loading moon bump texture', err)
-      );
-      
-      moonMaterial.needsUpdate = true;
-    },
-    // onProgress callback
-    undefined,
-    // onError callback
-    (err) => {
-      console.error('Error loading moon texture', err);
-      // Fallback to a simpler texture if NASA textures fail
-      textureLoader.load(
-        'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/moon_1024.jpg',
-        (fallbackTexture) => {
-          moonMaterial.map = fallbackTexture;
-          moonMaterial.needsUpdate = true;
-        }
-      );
-    }
-  );
+  
+  // Use GitHub texture for development to avoid CORS issues
+  const useGitHubFallback = true; // Set to false in production
+  
+  if (useGitHubFallback) {
+    // Skip NASA textures that cause CORS issues and go straight to GitHub-hosted textures
+    console.log("Using GitHub moon texture to avoid CORS issues");
+    textureLoader.load(
+      'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/moon_1024.jpg',
+      (texture) => {
+        moonMaterial.map = texture;
+        moonMaterial.needsUpdate = true;
+        console.log("Moon texture loaded from GitHub");
+      },
+      undefined,
+      (err) => console.error('Error loading moon texture from GitHub', err)
+    );
+  } else {
+    // Original NASA implementation - use in production environment
+    textureLoader.load(
+      // URL to high-quality moon texture from NASA
+      'https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/lroc_color_poles_1k.jpg',
+      // onLoad callback
+      (texture) => {
+        moonMaterial.map = texture;
+        
+        // Also load a bump map for realistic terrain
+        textureLoader.load(
+          'https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/ldem_3_8bit_1k.jpg',
+          (bumpMap) => {
+            moonMaterial.bumpMap = bumpMap;
+            moonMaterial.bumpScale = 0.3;
+            moonMaterial.needsUpdate = true;
+          },
+          undefined,
+          (err) => console.error('Error loading moon bump texture', err)
+        );
+        
+        moonMaterial.needsUpdate = true;
+      },
+      // onProgress callback
+      undefined,
+      // onError callback
+      (err) => {
+        console.error('Error loading moon texture', err);
+        // Fallback to a simpler texture if NASA textures fail
+        textureLoader.load(
+          'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/moon_1024.jpg',
+          (fallbackTexture) => {
+            moonMaterial.map = fallbackTexture;
+            moonMaterial.needsUpdate = true;
+          }
+        );
+      }
+    );
+  }
   
   // Create moon mesh
   const moon = new Mesh(moonGeometry, moonMaterial);
