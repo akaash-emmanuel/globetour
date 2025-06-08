@@ -491,26 +491,8 @@ const showAstronautToolsMenu = (scene, globe, globeGroup, camera) => {
         window.currentToolCleanup();
       }
       
-      // Clear globe visualizations but keep UI elements for most tools
-      if (globe) {
-        globe.ringsData([]);
-        globe.arcsData([]);
-      }
-
-      // Clear custom meshes and objects from globe
-      if (globeGroup && globeGroup.children) {
-        globeGroup.children = globeGroup.children.filter(child =>
-          !child.userData?.isAstronautTool && 
-          !child.userData?.isSituationalAwarenessTool &&
-          !child.userData?.isMissionPlannerElement
-        );
-      }
-
-      // Clear any existing interval timers
-      if (window.astronautToolIntervals) {
-        window.astronautToolIntervals.forEach(interval => clearInterval(interval));
-        window.astronautToolIntervals = [];
-      }
+      // Clear globe visualizations but preserve the info panel
+      clearAstronautToolsPreservePanel(globe, globeGroup);
 
       // Show loading indicator
       showLoadingIndicator();
@@ -540,7 +522,7 @@ const showAstronautToolsMenu = (scene, globe, globeGroup, camera) => {
 };
 
 // Import the shared cleanup function
-import { clearAstronautTools } from './clearAstronautTools.js';
+import { clearAstronautTools, clearAstronautToolsPreservePanel } from './clearAstronautTools.js';
 
 // Function to clear debris and orbits
 const clearDebrisAndOrbits = (globeGroup) => {
@@ -574,6 +556,7 @@ export {
   showAstronautToolsMenu,
   clearDebrisAndOrbits,
   clearAstronautTools,
+  clearAstronautToolsPreservePanel,
   createVerticalButton,
   diagnoseAxios,
   showLoadingIndicator,

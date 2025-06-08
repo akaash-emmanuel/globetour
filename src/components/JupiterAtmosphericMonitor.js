@@ -527,8 +527,11 @@ export const showJupiterAtmosphericMonitor = (scene, globe, globeGroup, camera) 
     }
   };
   
+  // Generate initial atmospheric data for visualization
+  const initialAtmosphericData = generateJupiterAtmosphericData();
+  
   // Create atmospheric visualization
-  createJupiterAtmosphericVisualization(scene, globe, globeGroup);
+  createJupiterAtmosphericVisualization(scene, globe, globeGroup, initialAtmosphericData);
   
   // Update immediately and then every 30 seconds
   updateJupiterAtmospheric();

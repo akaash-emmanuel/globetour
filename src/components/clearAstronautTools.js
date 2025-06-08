@@ -35,11 +35,10 @@ export const clearAstronautTools = (globe, globeGroup) => {
     window.missionPlannerIntervals = [];
   }
 
-  // Remove any UI elements
+  // Remove only specific UI elements (preserve verticalButton for astronaut tools)
   const elementsToRemove = [
-    "verticalButton",
     "astronautToolsMenu",
-    "space-sa-hud",
+    "space-sa-hud", 
     "ar-toggle-button",
     "mission-planner-panel",
     "loadingIndicator",
@@ -50,4 +49,32 @@ export const clearAstronautTools = (globe, globeGroup) => {
     const element = document.getElementById(id);
     if (element) element.remove();
   });
+};
+
+/**
+ * Clear astronaut tool visualizations but preserve the info panel
+ * @param {Object} globe - The ThreeGlobe instance
+ * @param {Object} globeGroup - The group containing the globe 
+ */
+export const clearAstronautToolsPreservePanel = (globe, globeGroup) => {
+  // Clear any data visualizations
+  if (globe) {
+    globe.ringsData([]);
+    globe.arcsData([]);
+  }
+
+  // Clear custom meshes and objects
+  if (globeGroup && globeGroup.children) {
+    globeGroup.children = globeGroup.children.filter(child =>
+      !child.userData?.isAstronautTool && 
+      !child.userData?.isSituationalAwarenessTool &&
+      !child.userData?.isMissionPlannerElement
+    );
+  }
+
+  // Clear any existing interval timers
+  if (window.astronautToolIntervals) {
+    window.astronautToolIntervals.forEach(interval => clearInterval(interval));
+    window.astronautToolIntervals = [];
+  }
 };

@@ -112,7 +112,7 @@ const generateSaturnAtmosphericData = () => {
       spokeActivity: ringDynamics.spokeActivity.toFixed(1),
       temperature: ringDynamics.ringTemperature.toFixed(1),
       massDistribution: "99.9% in B Ring",
-      stability: spokeActivity > 70 ? "Dynamic" : spokeActivity > 40 ? "Moderate" : "Stable"
+      stability: ringDynamics.spokeActivity > 70 ? "Dynamic" : ringDynamics.spokeActivity > 40 ? "Moderate" : "Stable"
     },
     stormSystems: {
       hexagonStorm: {
