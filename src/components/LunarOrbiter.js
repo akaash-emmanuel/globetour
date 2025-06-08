@@ -321,8 +321,22 @@ export const updateLROInfoPanel = async (infoPanel) => {
   `;
 };
 
+// Variable to track current animation frame for cancellation
+let currentAnimationFrame = null;
+
+// Function to stop any ongoing animation
+export const stopCurrentAnimation = () => {
+  if (currentAnimationFrame !== null) {
+    cancelAnimationFrame(currentAnimationFrame);
+    currentAnimationFrame = null;
+  }
+};
+
 // Main function to show Lunar Orbiter visualization
 export const showLunarOrbiterLive = (scene, globe, globeGroup, camera) => {
+  // Stop any existing animations first
+  stopCurrentAnimation();
+  
   // Get the moon object from the scene
   let moon = null;
   scene.traverse((object) => {
@@ -382,7 +396,7 @@ export const showLunarOrbiterLive = (scene, globe, globeGroup, camera) => {
       
       // Continue animation if not complete
       if (progress < 1) {
-        requestAnimationFrame(animateCamera);
+        currentAnimationFrame = requestAnimationFrame(animateCamera);
       }
     }
     

@@ -9,12 +9,13 @@ import {
   LineLoop,
   EllipseCurve,
   PointLight,
-  Color
+  Color,
+  ClampToEdgeWrapping
 } from 'three';
 import axios from 'axios';
 
 // Constants for Sun
-const SUN_RADIUS = 250; // Sun's radius compared to Earth (scaled for visualization, increased for better visibility)
+const SUN_RADIUS = 350; // Sun's radius compared to Earth (scaled for visualization, increased for better visibility)
 const SUN_DISTANCE = 5500; // Distance from coordinate center (increased for better scaling)
 const EARTH_ORBITAL_PERIOD = 60; // Time in seconds for Earth to complete one orbit (faster for better visualization)
 const EARTH_ORBITAL_INCLINATION = 7.155 * (Math.PI / 180); // Earth's orbital inclination (~7.155 degrees)
@@ -26,6 +27,12 @@ const SDO_UPDATE_INTERVAL = 10 * 60 * 1000; // Update every 10 minutes (in milli
 const SDO_DEFAULT_WAVELENGTH = "304"; // Default: 304 Angstrom (red/orange showing chromosphere and transition region)
 const SDO_WAVELENGTHS = ["171", "193", "211", "304", "131", "335", "094", "1600", "1700", "AIA", "0171", "0193", "0211", "0304", "0131", "0335", "0094"];
 
+// Asteroid Belt Constants (for future implementation)
+export const ASTEROID_BELT_INNER_RADIUS = 5600; // Scaled distance from sun (between Mars and Jupiter)
+export const ASTEROID_BELT_OUTER_RADIUS = 7000; // Scaled outer distance
+export const ASTEROID_BELT_THICKNESS = 200; // Visual thickness of the belt
+export const ASTEROID_BELT_COUNT = 2900; // Number of asteroids to render (adjust for performance/visuals)
+
 // Create and add the sun to the scene
 export const createSun = (scene) => {
   // Create sun geometry
@@ -35,11 +42,11 @@ export const createSun = (scene) => {
   const sunMaterial = new MeshPhongMaterial({
     color: 0xffffaa,
     emissive: 0xffffaa,
-    emissiveIntensity: 1,
-    shininess: 10 // Add shininess for a more realistic appearance
+    emissiveIntensity: 1.5, // Enhanced glow
+    shininess: 15 // Increased shininess for a more vibrant appearance
   });
   
-  // Add a slight glow effect
+  // Add a glow effect
   sunMaterial.transparent = true;
   
   // Load high-quality sun texture for better realism
@@ -48,7 +55,7 @@ export const createSun = (scene) => {
   // Function to fetch and update sun texture with latest SDO imagery
   const updateSunTexture = async () => {
     try {
-      // Fetch the latest SDO image metadata to get the most recent image
+      // First try to get NASA SDO image
       const latestSDOUrl = await getLatestSDOImageUrl(SDO_DEFAULT_WAVELENGTH);
       
       if (latestSDOUrl) {
@@ -78,11 +85,50 @@ export const createSun = (scene) => {
   
   // Function to load fallback textures if SDO fails
   const loadFallbackTexture = () => {
-    console.log('Using basic color for sun');
-    sunMaterial.color.set(0xffcb8c);
-    sunMaterial.emissive.set(0xff9933);
-    sunMaterial.emissiveIntensity = 1;
-    sunMaterial.needsUpdate = true;
+    console.log('Loading fallback sun texture');
+    // Multiple path options to handle different environment configurations
+    const fallbackSunUrls = [
+      './src/assets/sun.jpg',     // Direct from source folder
+      '../assets/sun.jpg',        // Relative from components folder 
+      './assets/sun.jpg',         // From project root
+      '/assets/sun.jpg'           // From server root
+    ];
+    
+    let currentIndex = 0;
+    
+    const tryNextTexture = () => {
+      if (currentIndex >= fallbackSunUrls.length) {
+        console.log('All Sun texture sources failed, using basic material');
+        sunMaterial.color.set(0xffcb8c);
+        sunMaterial.emissive.set(0xff9933);
+        sunMaterial.emissiveIntensity = 1;
+        sunMaterial.needsUpdate = true;
+        return;
+      }
+      
+      textureLoader.load(
+        fallbackSunUrls[currentIndex],
+        (texture) => {
+          // Ensure proper UV mapping for full sphere coverage
+          texture.wrapS = ClampToEdgeWrapping;
+          texture.wrapT = ClampToEdgeWrapping;
+          texture.flipY = false;
+          texture.needsUpdate = true;
+          
+          sunMaterial.map = texture;
+          sunMaterial.needsUpdate = true;
+          console.log(`Sun fallback texture loaded from source ${currentIndex + 1}`);
+        },
+        undefined,
+        (error) => {
+          console.warn(`Failed to load Sun texture from source ${currentIndex + 1}:`, error);
+          currentIndex++;
+          tryNextTexture();
+        }
+      );
+    };
+    
+    tryNextTexture();
   };
   
   // Initial texture load
@@ -94,15 +140,20 @@ export const createSun = (scene) => {
   // Position sun far away from the origin
   sun.position.set(SUN_DISTANCE, 0, 0);
   
-  // Add enhanced lights emanating from the sun
-  const sunLight = new PointLight(0xffffff, 2, 0);
+  // Add enhanced lights emanating from the sun - dramatically increased intensity for primary light source
+  const sunLight = new PointLight(0xffffff, 5.0, 0);  // increased from 3.5 to 5.0
   sunLight.position.copy(sun.position);
   scene.add(sunLight);
   
-  // Add secondary sun light with slight color variation for realism
-  const secondarySunLight = new PointLight(0xffeecc, 0.8, 3000);
+  // Add secondary sun light with slight color variation for realism - increased intensity
+  const secondarySunLight = new PointLight(0xffeecc, 2.5, 5000);  // increased from 1.2 to 2.5, range from 3000 to 5000
   secondarySunLight.position.copy(sun.position);
   scene.add(secondarySunLight);
+  
+  // Add tertiary light with warm color to simulate light scattered through dust
+  const tertiaryLight = new PointLight(0xff9933, 1.0, 8000);
+  tertiaryLight.position.copy(sun.position);
+  scene.add(tertiaryLight);
   
   // Create orbit path visualization for Earth around the sun
   const orbitPath = createEarthOrbitPath(SUN_DISTANCE);
@@ -113,6 +164,7 @@ export const createSun = (scene) => {
     isSun: true,
     light: sunLight,
     secondaryLight: secondarySunLight,
+    tertiaryLight: tertiaryLight,
     orbitPath: orbitPath,
     updateInterval: null, // Will store the setInterval reference
     lastTextureUpdate: Date.now()
@@ -261,12 +313,17 @@ export const toggleSunVisibility = (sun, isVisible) => {
     
     // Update main light intensity based on visibility
     if (sun.userData && sun.userData.light) {
-      sun.userData.light.intensity = newVisibility ? 2 : 0;
+      sun.userData.light.intensity = newVisibility ? 5.0 : 0;  // updated to match new intensity
     }
     
     // Update secondary light intensity based on visibility
     if (sun.userData && sun.userData.secondaryLight) {
-      sun.userData.secondaryLight.intensity = newVisibility ? 0.8 : 0;
+      sun.userData.secondaryLight.intensity = newVisibility ? 2.5 : 0;  // updated to match new intensity
+    }
+    
+    // Update tertiary light intensity based on visibility
+    if (sun.userData && sun.userData.tertiaryLight) {
+      sun.userData.tertiaryLight.intensity = newVisibility ? 1.0 : 0;  // updated to match new intensity
     }
     
     return newVisibility;

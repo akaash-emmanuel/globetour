@@ -6,11 +6,15 @@ import {
   Vector3, 
   BufferGeometry, 
   LineBasicMaterial, 
-  LineLoop
+  LineLoop,
+  ClampToEdgeWrapping
 } from 'three';
 
+// Import asset loader for textures
+import { getTexturePath } from '../utils/assetLoader.js';
+
 // Constants for Venus
-const VENUS_RADIUS = 0.95; // Venus's radius relative to Earth's radius
+const VENUS_RADIUS = 0.8; // Venus's radius relative to Earth's radius
 const VENUS_SEMI_MAJOR_AXIS = 0.33 * 5500; // Venus's average distance from the Sun
 const VENUS_ECCENTRICITY = 0.007; // Venus's orbital eccentricity
 const VENUS_ORBITAL_PERIOD = 42; // Venus's orbital period for visualization (reduced for faster animation)
@@ -23,8 +27,8 @@ export const createVenus = (scene, sun) => {
     return null;
   }
 
-  // Create Venus geometry
-  const venusGeometry = new SphereGeometry(VENUS_RADIUS * 150, 32, 32);
+  // Create Venus geometry with proper UV mapping
+  const venusGeometry = new SphereGeometry(VENUS_RADIUS * 150, 64, 32);
 
   // Create Venus material with enhanced basic appearance (for CORS fallback)
   const venusMaterial = new MeshPhongMaterial({
@@ -65,23 +69,53 @@ export const createVenus = (scene, sun) => {
 // Try to load Venus textures with multiple fallbacks
 const tryLoadVenusTextures = (material) => {
   const textureLoader = new TextureLoader();
-  // Use a GitHub-hosted fallback instead of local file
-  const fallbackTexturePath = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/venus-surface.jpg';
+  
+  // Get the properly imported texture path
+  const venusTexturePath = getTexturePath('venus');
+  
+  // Multiple path options to handle different environment configurations
+  const fallbackTexturePaths = [
+    venusTexturePath,               // Webpack imported asset
+    './src/assets/venus.jpg',       // Direct from source folder
+    '../assets/venus.jpg',          // Relative from components folder 
+    './assets/venus.jpg',           // From project root
+    '/assets/venus.jpg'             // From server root
+  ];
 
-  // Try loading texture from fallback source
-  textureLoader.load(
-    fallbackTexturePath,
-    (texture) => {
-      material.map = texture;
-      material.needsUpdate = true;
-      console.log("Venus texture loaded from fallback source");
-    },
-    undefined,
-    () => {
-      console.log('Venus texture not found, using basic material');
-      // If texture fails, we'll just use the basic material we set up initially
+  let currentIndex = 0;
+
+  const tryNextTexture = () => {
+    if (currentIndex >= fallbackTexturePaths.length) {
+      console.log('Venus: All texture sources failed, using basic material');
+      return;
     }
-  );
+
+    const texturePath = fallbackTexturePaths[currentIndex];
+    console.log(`Venus: Attempting to load texture from source ${currentIndex + 1}: ${texturePath}`);
+
+    textureLoader.load(
+      texturePath,
+      (texture) => {
+        // Configure texture for proper UV mapping across entire sphere
+        texture.wrapS = ClampToEdgeWrapping;
+        texture.wrapT = ClampToEdgeWrapping;
+        texture.flipY = false;
+        texture.needsUpdate = true;
+        
+        material.map = texture;
+        material.needsUpdate = true;
+        console.log(`Venus: Successfully loaded texture from source ${currentIndex + 1}`);
+      },
+      undefined,
+      (error) => {
+        console.log(`Venus: Failed to load texture from source ${currentIndex + 1}, trying next...`);
+        currentIndex++;
+        tryNextTexture();
+      }
+    );
+  };
+
+  tryNextTexture();
 };
 
 // Create a visible orbit path for Venus

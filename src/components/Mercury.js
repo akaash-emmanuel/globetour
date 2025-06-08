@@ -6,11 +6,15 @@ import {
   Vector3, 
   BufferGeometry, 
   LineBasicMaterial, 
-  LineLoop
+  LineLoop,
+  ClampToEdgeWrapping
 } from 'three';
 
+// Import asset loader for textures
+import { getTexturePath } from '../utils/assetLoader.js';
+
 // Constants for Mercury
-const MERCURY_RADIUS = 0.38; // Mercury's radius relative to Earth's radius
+const MERCURY_RADIUS = 0.34; // Mercury's radius relative to Earth's radius
 const MERCURY_SEMI_MAJOR_AXIS = 0.2 * 5500; // Mercury's average distance from the Sun
 const MERCURY_ECCENTRICITY = 0.306; // Mercury's orbital eccentricity
 const MERCURY_ORBITAL_PERIOD = 10; // Mercury's orbital period for visualization (reduced for faster animation)
@@ -23,8 +27,8 @@ export const createMercury = (scene, sun) => {
     return null;
   }
 
-  // Create Mercury geometry
-  const mercuryGeometry = new SphereGeometry(MERCURY_RADIUS * 150, 32, 32);
+  // Create Mercury geometry with proper UV mapping
+  const mercuryGeometry = new SphereGeometry(MERCURY_RADIUS * 150, 64, 32);
 
   // Create Mercury material with enhanced basic appearance (for CORS fallback)
   const mercuryMaterial = new MeshPhongMaterial({
@@ -65,23 +69,51 @@ export const createMercury = (scene, sun) => {
 // Try to load Mercury textures with multiple fallbacks
 const tryLoadMercuryTextures = (material) => {
   const textureLoader = new TextureLoader();
-  // Use a GitHub-hosted fallback instead of local file that doesn't exist
-  const fallbackTexturePath = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/mercury.jpg';
+  
+  // Get the properly imported texture path
+  const mercuryTexturePath = getTexturePath('mercury');
+  
+  // Also provide fallback paths in case the imported texture fails
+  const fallbackTexturePaths = [
+    mercuryTexturePath,              // Webpack imported asset
+    './src/assets/mercury.jpg',      // Direct from source folder
+    '../assets/mercury.jpg',         // Relative from components folder 
+    './assets/mercury.jpg',          // From project root
+    '/assets/mercury.jpg'            // From server root
+  ];
 
-  // Try loading texture from fallback source
-  textureLoader.load(
-    fallbackTexturePath,
-    (texture) => {
-      material.map = texture;
-      material.needsUpdate = true;
-      console.log("Mercury texture loaded from fallback source");
-    },
-    undefined,
-    () => {
-      console.log('Mercury texture not found, using basic material');
-      // If texture fails, we'll just use the basic material we set up initially
+  // Try loading texture from fallback sources sequentially
+  let currentIndex = 0;
+  
+  const tryNextTexture = () => {
+    if (currentIndex >= fallbackTexturePaths.length) {
+      console.log('All Mercury texture sources failed, using basic material');
+      return;
     }
-  );
+    
+    textureLoader.load(
+      fallbackTexturePaths[currentIndex],
+      (texture) => {
+        // Ensure proper UV mapping for full sphere coverage
+        texture.wrapS = ClampToEdgeWrapping;
+        texture.wrapT = ClampToEdgeWrapping;
+        texture.flipY = false;
+        texture.needsUpdate = true;
+        
+        material.map = texture;
+        material.needsUpdate = true;
+        console.log(`Mercury texture loaded successfully from source ${currentIndex + 1}`);
+      },
+      undefined,
+      (error) => {
+        console.warn(`Failed to load Mercury texture from source ${currentIndex + 1}:`, error);
+        currentIndex++;
+        tryNextTexture();
+      }
+    );
+  };
+  
+  tryNextTexture();
 };
 
 // Create a visible orbit path for Mercury

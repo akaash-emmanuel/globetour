@@ -156,6 +156,90 @@ const createVerticalButton = () => {
     zIndex: "1100"
   });
 
+  // Add close button to vertical panel
+  const verticalPanelCloseButton = document.createElement("button");
+  verticalPanelCloseButton.innerHTML = "&times;";
+  verticalPanelCloseButton.style.position = "absolute";
+  verticalPanelCloseButton.style.top = "10px";
+  verticalPanelCloseButton.style.right = "10px";
+  verticalPanelCloseButton.style.width = "22px";
+  verticalPanelCloseButton.style.height = "22px";
+  verticalPanelCloseButton.style.border = "none";
+  verticalPanelCloseButton.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
+  verticalPanelCloseButton.style.color = "#ffffff";
+  verticalPanelCloseButton.style.borderRadius = "50%";
+  verticalPanelCloseButton.style.cursor = "pointer";
+  verticalPanelCloseButton.style.fontSize = "16px";
+  verticalPanelCloseButton.style.display = "flex";
+  verticalPanelCloseButton.style.alignItems = "center";
+  verticalPanelCloseButton.style.justifyContent = "center";
+  verticalPanelCloseButton.style.transition = "background-color 0.3s ease";
+  verticalPanelCloseButton.style.zIndex = "1110";
+  
+  verticalPanelCloseButton.addEventListener("mouseover", () => {
+    verticalPanelCloseButton.style.backgroundColor = "rgba(255, 255, 255, 0.4)";
+  });
+  
+  verticalPanelCloseButton.addEventListener("mouseout", () => {
+    verticalPanelCloseButton.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
+  });
+  
+  verticalPanelCloseButton.addEventListener("click", (e) => {
+    e.stopPropagation();
+    verticalButton.remove();
+  });
+  
+  // Add minimize button to vertical panel
+  const verticalPanelMinimizeButton = document.createElement("button");
+  verticalPanelMinimizeButton.innerHTML = "&#8722;"; // minus symbol
+  verticalPanelMinimizeButton.style.position = "absolute";
+  verticalPanelMinimizeButton.style.top = "10px";
+  verticalPanelMinimizeButton.style.right = "35px";
+  verticalPanelMinimizeButton.style.width = "22px";
+  verticalPanelMinimizeButton.style.height = "22px";
+  verticalPanelMinimizeButton.style.border = "none";
+  verticalPanelMinimizeButton.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
+  verticalPanelMinimizeButton.style.color = "#ffffff";
+  verticalPanelMinimizeButton.style.borderRadius = "50%";
+  verticalPanelMinimizeButton.style.cursor = "pointer";
+  verticalPanelMinimizeButton.style.fontSize = "16px";
+  verticalPanelMinimizeButton.style.display = "flex";
+  verticalPanelMinimizeButton.style.alignItems = "center";
+  verticalPanelMinimizeButton.style.justifyContent = "center";
+  verticalPanelMinimizeButton.style.transition = "background-color 0.3s ease";
+  verticalPanelMinimizeButton.style.zIndex = "1110";
+  
+  let isMinimized = false;
+  const originalHeight = verticalButton.style.minHeight;
+  
+  verticalPanelMinimizeButton.addEventListener("mouseover", () => {
+    verticalPanelMinimizeButton.style.backgroundColor = "rgba(255, 255, 255, 0.4)";
+  });
+  
+  verticalPanelMinimizeButton.addEventListener("mouseout", () => {
+    verticalPanelMinimizeButton.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
+  });
+  
+  verticalPanelMinimizeButton.addEventListener("click", (e) => {
+    e.stopPropagation();
+    isMinimized = !isMinimized;
+    
+    if (isMinimized) {
+      verticalButton.style.minHeight = "50px";
+      verticalButton.style.maxHeight = "50px";
+      verticalButton.style.overflow = "hidden";
+      verticalPanelMinimizeButton.innerHTML = "&#43;"; // plus symbol
+    } else {
+      verticalButton.style.minHeight = originalHeight;
+      verticalButton.style.maxHeight = "70vh";
+      verticalButton.style.overflow = "auto";
+      verticalPanelMinimizeButton.innerHTML = "&#8722;"; // minus symbol
+    }
+  });
+  
+  verticalButton.appendChild(verticalPanelCloseButton);
+  verticalButton.appendChild(verticalPanelMinimizeButton);
+
   document.body.appendChild(verticalButton);
   return verticalButton;
 };
@@ -198,6 +282,56 @@ const showAstronautToolsMenu = (scene, globe, globeGroup, camera) => {
   title.style.margin = "0 0 15px 0";
   title.style.textAlign = "center";
   title.style.fontFamily = "'Montserrat', sans-serif";
+  title.style.display = "flex";
+  title.style.justifyContent = "space-between";
+  title.style.alignItems = "center";
+  
+  // Add close button to astronaut tools menu
+  const astronautMenuCloseButton = document.createElement("button");
+  astronautMenuCloseButton.innerHTML = "&times;";
+  astronautMenuCloseButton.style.width = "20px";
+  astronautMenuCloseButton.style.height = "20px";
+  astronautMenuCloseButton.style.border = "none";
+  astronautMenuCloseButton.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
+  astronautMenuCloseButton.style.color = "#ffffff";
+  astronautMenuCloseButton.style.borderRadius = "50%";
+  astronautMenuCloseButton.style.cursor = "pointer";
+  astronautMenuCloseButton.style.fontSize = "14px";
+  astronautMenuCloseButton.style.display = "flex";
+  astronautMenuCloseButton.style.alignItems = "center";
+  astronautMenuCloseButton.style.justifyContent = "center";
+  astronautMenuCloseButton.style.transition = "background-color 0.3s ease";
+  
+  astronautMenuCloseButton.addEventListener("mouseover", () => {
+    astronautMenuCloseButton.style.backgroundColor = "rgba(255, 255, 255, 0.4)";
+  });
+  
+  astronautMenuCloseButton.addEventListener("mouseout", () => {
+    astronautMenuCloseButton.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
+  });
+  
+  astronautMenuCloseButton.addEventListener("click", (e) => {
+    e.stopPropagation();
+    // Clear any active tools
+    if (window.currentToolCleanup && typeof window.currentToolCleanup === 'function') {
+      window.currentToolCleanup();
+    }
+    clearAstronautTools(globe, globeGroup);
+    
+    // Remove the menu
+    astronautToolsMenu.remove();
+    
+    // Remove vertical panel too
+    const verticalButton = document.getElementById("verticalButton");
+    if (verticalButton) {
+      verticalButton.remove();
+    }
+  });
+  
+  const titleText = document.createElement("span");
+  titleText.innerText = "Astronaut Tools";
+  title.appendChild(titleText);
+  title.appendChild(astronautMenuCloseButton);
   astronautToolsMenu.appendChild(title);
   
   // Add tool buttons
@@ -220,6 +354,70 @@ const showAstronautToolsMenu = (scene, globe, globeGroup, camera) => {
       description: "Visualize LRO orbiting the Moon with live data",
       function: () => showLunarOrbiterLive(scene, globe, globeGroup, camera),
       highlight: false
+    },
+    {
+      name: "Mars Weather Monitor",
+      description: "Real-time Mars atmospheric conditions and surface weather",
+      function: () => {
+        // Switch to Mars first, then show monitor
+        if (typeof window.switchCameraFocus === 'function') {
+          window.switchCameraFocus('mars', 1.5);
+          setTimeout(() => {
+            showMarsWeatherMonitor(scene, globe, globeGroup, camera);
+          }, 1600);
+        } else {
+          showMarsWeatherMonitor(scene, globe, globeGroup, camera);
+        }
+      },
+      highlight: true
+    },
+    {
+      name: "Venus Atmospheric Monitor",
+      description: "Venus extreme atmospheric conditions and greenhouse effect",
+      function: () => {
+        // Switch to Venus first, then show monitor
+        if (typeof window.switchCameraFocus === 'function') {
+          window.switchCameraFocus('venus', 1.5);
+          setTimeout(() => {
+            showVenusAtmosphericMonitor(scene, globe, globeGroup, camera);
+          }, 1600);
+        } else {
+          showVenusAtmosphericMonitor(scene, globe, globeGroup, camera);
+        }
+      },
+      highlight: true
+    },
+    {
+      name: "Jupiter Atmospheric Monitor",
+      description: "Jupiter atmospheric data from Juno mission observations",
+      function: () => {
+        // Switch to Jupiter first, then show monitor
+        if (typeof window.switchCameraFocus === 'function') {
+          window.switchCameraFocus('jupiter', 1.5);
+          setTimeout(() => {
+            showJupiterAtmosphericMonitor(scene, globe, globeGroup, camera);
+          }, 1600);
+        } else {
+          showJupiterAtmosphericMonitor(scene, globe, globeGroup, camera);
+        }
+      },
+      highlight: true
+    },
+    {
+      name: "Saturn Atmospheric Monitor", 
+      description: "Saturn rings and atmospheric data from Cassini mission",
+      function: () => {
+        // Switch to Saturn first, then show monitor
+        if (typeof window.switchCameraFocus === 'function') {
+          window.switchCameraFocus('saturn', 1.5);
+          setTimeout(() => {
+            showSaturnAtmosphericMonitor(scene, globe, globeGroup, camera);
+          }, 1600);
+        } else {
+          showSaturnAtmosphericMonitor(scene, globe, globeGroup, camera);
+        }
+      },
+      highlight: true
     },
     {
       name: "ISS Tracker",
@@ -293,8 +491,26 @@ const showAstronautToolsMenu = (scene, globe, globeGroup, camera) => {
         window.currentToolCleanup();
       }
       
-      // Clear the globe from any existing astronaut tools
-      clearAstronautTools(globe, globeGroup);
+      // Clear globe visualizations but keep UI elements for most tools
+      if (globe) {
+        globe.ringsData([]);
+        globe.arcsData([]);
+      }
+
+      // Clear custom meshes and objects from globe
+      if (globeGroup && globeGroup.children) {
+        globeGroup.children = globeGroup.children.filter(child =>
+          !child.userData?.isAstronautTool && 
+          !child.userData?.isSituationalAwarenessTool &&
+          !child.userData?.isMissionPlannerElement
+        );
+      }
+
+      // Clear any existing interval timers
+      if (window.astronautToolIntervals) {
+        window.astronautToolIntervals.forEach(interval => clearInterval(interval));
+        window.astronautToolIntervals = [];
+      }
 
       // Show loading indicator
       showLoadingIndicator();
@@ -348,6 +564,10 @@ import { showCommSatellites } from './EmergencyResponseSystem.js';
 import { showEarthObservation } from './EarthObservationPlanner.js';
 import { showSpaceSituationalAwareness } from './SpaceSituationalAwareness.js';
 import { showLunarOrbiterLive } from './LunarOrbiter.js';
+import { showMarsWeatherMonitor } from './MarsWeatherMonitor.js';
+import { showJupiterAtmosphericMonitor } from './JupiterAtmosphericMonitor.js';
+import { showSaturnAtmosphericMonitor } from './SaturnAtmosphericMonitor.js';
+import { showVenusAtmosphericMonitor } from './VenusAtmosphericMonitor.js';
 
 // Export all necessary functions
 export {

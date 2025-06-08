@@ -6,14 +6,22 @@ import spaceMusic from "./assets/spacemusic.mp3";
 import gsap from 'gsap';
 import * as satellite from 'satellite.js';
 import axios from 'axios';
+import { createSpaceBackground, createSpaceSkybox } from './components/SpaceBackground.js';
 
 // Import the astronaut tools components
 import * as AstronautTools from './components/AstronautTools.js';
 import * as Moon from './components/Moon.js';
 import * as Sun from './components/Sun.js';
 import * as LunarOrbiter from './components/LunarOrbiter.js';
+import { stopCurrentAnimation } from './components/LunarOrbiter.js';
 import { createMercury, updateMercuryPosition } from './components/Mercury.js';
 import { createVenus, updateVenusPosition } from './components/Venus.js';
+import { createMars, updateMarsPosition } from './components/Mars.js';
+import { createJupiter, updateJupiterPosition, toggleJupiterVisibility } from './components/Jupiter.js';
+import { createSaturn, updateSaturnPosition, toggleSaturnVisibility, SATURN_RADIUS } from './components/Saturn.js';
+import { createAsteroidBelt, updateAsteroidBelt, toggleAsteroidBeltVisibility } from './components/AsteroidBelt.js';
+import { createUranus, updateUranusPosition, URANUS_RADIUS } from './components/Uranus.js';
+import { createNeptune, updateNeptunePosition, toggleNeptuneVisibility, NEPTUNE_RADIUS } from './components/Neptune.js';
 
 // Import constants from Sun.js and Moon.js for camera positioning
 const SUN_RADIUS = 10; // Same as in Sun.js
@@ -27,6 +35,11 @@ let moon; // Reference to the moon object
 let sun; // Reference to the sun object
 let mercury; // Reference to the Mercury object
 let venus; // Reference to the Venus object
+let mars; // Reference to the Mars object
+let jupiter; // Reference to the Jupiter object
+let saturn; // Reference to the Saturn object
+let uranus; // Reference to the Uranus object
+let neptune; // Reference to the Neptune object
 let audio;
 let audioPlayed = false;
 let windowHalfX = window.innerWidth / 2;
@@ -47,12 +60,81 @@ let toggleButtonsContainer = null; // Container for toggle buttons
 // Global variable for the focus menu
 let focusMenuContent = null; // Menu content container for celestial bodies
 
+// Typewriter effect function
+function typeWriter(htmlContent, targetElement, speed = 50) {
+  if (!targetElement || !htmlContent) return;
+  
+  // Stop any currently running typewriter
+  stopCurrentTypeWriter();
+  
+  // Clear the target element
+  targetElement.innerHTML = '';
+  
+  // Parse HTML content to handle tags properly
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = htmlContent;
+  
+  let textIndex = 0;
+  const fullText = tempDiv.innerHTML;
+  
+  function type() {
+    if (textIndex < fullText.length) {
+      // Get current character
+      let char = fullText.charAt(textIndex);
+      
+      // Handle HTML tags - if we encounter '<', include everything until '>'
+      if (char === '<') {
+        let tagEnd = fullText.indexOf('>', textIndex);
+        if (tagEnd !== -1) {
+          // Include the entire tag
+          targetElement.innerHTML = fullText.substring(0, tagEnd + 1);
+          textIndex = tagEnd + 1;
+        } else {
+          // Fallback if no closing tag found
+          targetElement.innerHTML = fullText.substring(0, textIndex + 1);
+          textIndex++;
+        }
+      } else {
+        // Regular character
+        targetElement.innerHTML = fullText.substring(0, textIndex + 1);
+        textIndex++;
+      }
+      
+      // Continue typing with setTimeout
+      currentTypeWriter = setTimeout(type, speed);
+    } else {
+      // Typing complete
+      currentTypeWriter = null;
+    }
+  }
+  
+  // Start typing
+  type();
+}
+
+// Function to stop current typewriter animation
+function stopCurrentTypeWriter() {
+  if (currentTypeWriter) {
+    clearTimeout(currentTypeWriter);
+    currentTypeWriter = null;
+  }
+}
+
 // Function to update UI when focus changes
 function updateFocusButtonsUI() {
+  // Check if focusMenuContent exists before proceeding
+  if (!focusMenuContent) {
+    console.warn('focusMenuContent not initialized yet');
+    return;
+  }
+  
   // Update button states based on current focus
   const buttons = focusMenuContent.getElementsByTagName('button');
   Array.from(buttons).forEach(button => {
-    const bodyName = button.textContent.split(' ')[1].toLowerCase();
+    // Extract body name from button text, handling various formats safely
+    const textParts = button.textContent.split(' ');
+    const bodyName = textParts.length > 1 ? textParts[1].toLowerCase() : textParts[0].toLowerCase();
+    
     if (bodyName === cameraFocus) {
       button.style.backgroundColor = '#333';
       button.style.borderColor = '#555';
@@ -67,6 +149,191 @@ function updateFocusButtonsUI() {
   if (wavelengthSelector) {
     wavelengthSelector.style.display = cameraFocus === 'sun' ? 'flex' : 'none';
   }
+
+  // Remove any existing planet-specific monitor buttons
+  const existingMonitorButtons = document.getElementById('planet-monitor-buttons');
+  if (existingMonitorButtons) {
+    existingMonitorButtons.remove();
+  }
+
+  // Create planet-specific atmospheric monitor buttons
+  createPlanetSpecificMonitorButtons();
+}
+
+// Function to create planet-specific monitor buttons when focusing on planets
+function createPlanetSpecificMonitorButtons() {
+  // Define which planets have atmospheric monitors available
+  const planetMonitors = {
+    'mars': {
+      name: 'Mars Weather Monitor',
+      icon: '🌪️',
+      description: 'Real-time Mars atmospheric conditions',
+      function: 'showMarsWeatherMonitor'
+    },
+    'venus': {
+      name: 'Venus Atmospheric Monitor', 
+      icon: '🔥',
+      description: 'Venus extreme atmospheric conditions',
+      function: 'showVenusAtmosphericMonitor'
+    },
+    'jupiter': {
+      name: 'Jupiter Atmospheric Monitor',
+      icon: '🌀', 
+      description: 'Jupiter atmospheric data from Juno mission',
+      function: 'showJupiterAtmosphericMonitor'
+    },
+    'saturn': {
+      name: 'Saturn Atmospheric Monitor',
+      icon: '💍',
+      description: 'Saturn rings and atmospheric data from Cassini',
+      function: 'showSaturnAtmosphericMonitor'
+    }
+  };
+
+  // Check if current focus has an atmospheric monitor
+  const currentMonitor = planetMonitors[cameraFocus];
+  if (!currentMonitor) {
+    return; // No monitor available for this celestial body
+  }
+
+  // Create container for planet-specific monitor buttons
+  const monitorButtonsContainer = document.createElement('div');
+  monitorButtonsContainer.id = 'planet-monitor-buttons';
+  monitorButtonsContainer.style.position = 'absolute';
+  monitorButtonsContainer.style.top = '70px';
+  monitorButtonsContainer.style.right = '20px';
+  monitorButtonsContainer.style.zIndex = '1000';
+  monitorButtonsContainer.style.display = 'flex';
+  monitorButtonsContainer.style.flexDirection = 'column';
+  monitorButtonsContainer.style.gap = '10px';
+
+  // Create the atmospheric monitor button
+  const monitorButton = document.createElement('button');
+  monitorButton.style.padding = '12px 16px';
+  monitorButton.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+  monitorButton.style.color = '#ffffff';
+  monitorButton.style.border = '2px solid #00ffff';
+  monitorButton.style.borderRadius = '8px';
+  monitorButton.style.cursor = 'pointer';
+  monitorButton.style.fontFamily = "'Montserrat', sans-serif";
+  monitorButton.style.fontSize = '14px';
+  monitorButton.style.fontWeight = 'bold';
+  monitorButton.style.transition = 'all 0.3s ease';
+  monitorButton.style.boxShadow = '0 0 10px rgba(0, 255, 255, 0.3)';
+  monitorButton.style.display = 'flex';
+  monitorButton.style.alignItems = 'center';
+  monitorButton.style.gap = '8px';
+  monitorButton.style.minWidth = '200px';
+
+  monitorButton.innerHTML = `
+    <span style="font-size: 16px;">${currentMonitor.icon}</span>
+    <div style="display: flex; flex-direction: column; align-items: flex-start;">
+      <div style="font-size: 14px; font-weight: bold;">${currentMonitor.name}</div>
+      <div style="font-size: 11px; opacity: 0.8; color: #aaa;">${currentMonitor.description}</div>
+    </div>
+  `;
+
+  // Add hover effects
+  monitorButton.addEventListener('mouseover', () => {
+    monitorButton.style.backgroundColor = 'rgba(0, 255, 255, 0.2)';
+    monitorButton.style.transform = 'translateY(-2px)';
+    monitorButton.style.boxShadow = '0 4px 20px rgba(0, 255, 255, 0.5)';
+  });
+
+  monitorButton.addEventListener('mouseout', () => {
+    monitorButton.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    monitorButton.style.transform = 'translateY(0)';
+    monitorButton.style.boxShadow = '0 0 10px rgba(0, 255, 255, 0.3)';
+  });
+
+  // Add click handler to launch the atmospheric monitor
+  monitorButton.addEventListener('click', () => {
+    // Get the planet name from the current focus
+    const planetName = cameraFocus;
+    
+    // Switch camera focus to the planet first
+    switchCameraFocus(planetName, 1.5);
+    
+    // Wait for camera transition to complete, then launch monitor
+    setTimeout(() => {
+      // Import the required functions dynamically and call the appropriate monitor
+      import('./components/AstronautTools.js').then(AstronautToolsModule => {
+        // Clear any existing tools first
+        AstronautToolsModule.clearAstronautTools(Globe, globeGroup);
+        AstronautToolsModule.clearDebrisAndOrbits(globeGroup);
+        
+        // Create vertical info panel
+        AstronautToolsModule.createVerticalButton();
+        
+        // Show loading indicator
+        AstronautToolsModule.showLoadingIndicator();
+        
+        // Call the appropriate monitor function based on current planet
+        setTimeout(() => {
+          try {
+            let cleanupFunction;
+            
+            switch(currentMonitor.function) {
+              case 'showMarsWeatherMonitor':
+                import('./components/MarsWeatherMonitor.js').then(module => {
+                  cleanupFunction = module.showMarsWeatherMonitor(scene, Globe, globeGroup, camera);
+                  if (cleanupFunction && typeof cleanupFunction === 'function') {
+                    window.currentToolCleanup = cleanupFunction;
+                  }
+                  AstronautToolsModule.hideLoadingIndicator();
+                });
+                break;
+              case 'showVenusAtmosphericMonitor':
+                import('./components/VenusAtmosphericMonitor.js').then(module => {
+                  cleanupFunction = module.showVenusAtmosphericMonitor(scene, Globe, globeGroup, camera);
+                  if (cleanupFunction && typeof cleanupFunction === 'function') {
+                    window.currentToolCleanup = cleanupFunction;
+                  }
+                  AstronautToolsModule.hideLoadingIndicator();
+                });
+                break;
+              case 'showJupiterAtmosphericMonitor':
+                import('./components/JupiterAtmosphericMonitor.js').then(module => {
+                  cleanupFunction = module.showJupiterAtmosphericMonitor(scene, Globe, globeGroup, camera);
+                  if (cleanupFunction && typeof cleanupFunction === 'function') {
+                    window.currentToolCleanup = cleanupFunction;
+                  }
+                  AstronautToolsModule.hideLoadingIndicator();
+                });
+                break;
+              case 'showSaturnAtmosphericMonitor':
+                import('./components/SaturnAtmosphericMonitor.js').then(module => {
+                  cleanupFunction = module.showSaturnAtmosphericMonitor(scene, Globe, globeGroup, camera);
+                  if (cleanupFunction && typeof cleanupFunction === 'function') {
+                    window.currentToolCleanup = cleanupFunction;
+                  }
+                  AstronautToolsModule.hideLoadingIndicator();
+                });
+                break;
+              default:
+                console.error(`Unknown monitor function: ${currentMonitor.function}`);
+                AstronautToolsModule.hideLoadingIndicator();
+            }
+          } catch (error) {
+            console.error(`Error launching ${currentMonitor.name}:`, error);
+            AstronautToolsModule.hideLoadingIndicator();
+          }
+        }, 100);
+      });
+    }, 1600); // Wait for camera transition to complete
+  });
+
+  monitorButtonsContainer.appendChild(monitorButton);
+  document.body.appendChild(monitorButtonsContainer);
+
+  // Add fade-in animation
+  monitorButtonsContainer.style.opacity = '0';
+  monitorButtonsContainer.style.transform = 'translateX(20px)';
+  setTimeout(() => {
+    monitorButtonsContainer.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+    monitorButtonsContainer.style.opacity = '1';
+    monitorButtonsContainer.style.transform = 'translateX(0)';
+  }, 100);
 }
 
 function createCelestialMenu() {
@@ -91,7 +358,7 @@ function createCelestialMenu() {
   focusHamburger.style.boxShadow = "0 0 5px rgba(255, 255, 255, 0.2)";
   focusHamburger.innerHTML = `
     <div style="width: 25px; height: 3px; background-color: white; margin: 5px 0;"></div>
-    <div style="width: 25px; height: 3px; background-color: white, margin: 5px 0;"></div>
+    <div style="width: 25px; height: 3px; background-color: white; margin: 5px 0;"></div>
     <div style="width: 25px; height: 3px; background-color: white; margin: 5px 0;"></div>
   `;
   focusMenu.appendChild(focusHamburger);
@@ -122,6 +389,43 @@ function createCelestialMenu() {
   menuTitle.style.padding = '5px 10px';
   menuTitle.style.borderBottom = '1px solid #333';
   menuTitle.style.marginBottom = '5px';
+  menuTitle.style.display = 'flex';
+  menuTitle.style.justifyContent = 'space-between';
+  menuTitle.style.alignItems = 'center';
+  
+  // Add close button to celestial menu
+  const celestialMenuCloseButton = document.createElement("button");
+  celestialMenuCloseButton.innerHTML = "&times;";
+  celestialMenuCloseButton.style.width = "18px";
+  celestialMenuCloseButton.style.height = "18px";
+  celestialMenuCloseButton.style.border = "none";
+  celestialMenuCloseButton.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
+  celestialMenuCloseButton.style.color = "#ffffff";
+  celestialMenuCloseButton.style.borderRadius = "50%";
+  celestialMenuCloseButton.style.cursor = "pointer";
+  celestialMenuCloseButton.style.fontSize = "12px";
+  celestialMenuCloseButton.style.display = "flex";
+  celestialMenuCloseButton.style.alignItems = "center";
+  celestialMenuCloseButton.style.justifyContent = "center";
+  celestialMenuCloseButton.style.transition = "background-color 0.3s ease";
+  
+  celestialMenuCloseButton.addEventListener("mouseover", () => {
+    celestialMenuCloseButton.style.backgroundColor = "rgba(255, 255, 255, 0.4)";
+  });
+  
+  celestialMenuCloseButton.addEventListener("mouseout", () => {
+    celestialMenuCloseButton.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
+  });
+  
+  celestialMenuCloseButton.addEventListener("click", (e) => {
+    e.stopPropagation();
+    focusMenuContent.style.opacity = '0';
+    setTimeout(() => {
+      focusMenuContent.style.display = 'none';
+    }, 200);
+  });
+  
+  menuTitle.appendChild(celestialMenuCloseButton);
   focusMenuContent.appendChild(menuTitle);
 
   // Define celestial bodies
@@ -130,7 +434,13 @@ function createCelestialMenu() {
     { name: 'Sun', icon: '☀️', onclick: focusOnSun },
     { name: 'Moon', icon: '🌕', onclick: focusOnMoon },
     { name: 'Mercury', icon: '☿', onclick: focusOnMercury },
-    { name: 'Venus', icon: '♀', onclick: focusOnVenus }
+    { name: 'Venus', icon: '♀', onclick: focusOnVenus },
+    { name: 'Mars', icon: '♂', onclick: focusOnMars },
+    { name: 'Jupiter', icon: '♃', onclick: focusOnJupiter },
+    { name: 'Saturn', icon: '♄', onclick: focusOnSaturn },
+    { name: 'Asteroid Belt', icon: '💫', onclick: focusOnAsteroidBelt },
+    { name: 'Uranus', icon: '♅', onclick: focusOnUranus },
+    { name: 'Neptune', icon: '♆', onclick: focusOnNeptune }
   ];
 
   // Create buttons for each celestial body
@@ -273,11 +583,55 @@ function focusOnVenus() {
   updateFocusButtonsUI();
 }
 
+function focusOnMars() {
+  switchCameraFocus('mars');
+  focusMenuContent.style.display = 'none';
+  updateFocusButtonsUI();
+}
+
+function focusOnJupiter() {
+  switchCameraFocus('jupiter');
+  focusMenuContent.style.display = 'none';
+  updateFocusButtonsUI();
+}
+
+function focusOnSaturn() {
+  switchCameraFocus('saturn');
+  focusMenuContent.style.display = 'none';
+  updateFocusButtonsUI();
+}
+
+function focusOnAsteroidBelt() {
+  switchCameraFocus('asteroidbelt');
+  focusMenuContent.style.display = 'none';
+  updateFocusButtonsUI();
+}
+
+function focusOnUranus() {
+  switchCameraFocus('uranus');
+  focusMenuContent.style.display = 'none';
+  updateFocusButtonsUI();
+}
+
+function focusOnNeptune() {
+  switchCameraFocus('neptune');
+  focusMenuContent.style.display = 'none';
+  updateFocusButtonsUI();
+}
+
 function init() {
   renderer = new WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
-  document.body.appendChild(renderer.domElement);
+  
+  // Try to append to container, fallback to body
+  const container = document.getElementById('container');
+  if (container) {
+    container.appendChild(renderer.domElement);
+  } else {
+    document.body.appendChild(renderer.domElement);
+  }
+  
   document.body.style.margin = "0";
   document.body.style.padding = "0";
   document.body.style.overflow = "hidden";
@@ -286,25 +640,23 @@ function init() {
   console.log("Initializing Globe Tour application...");
 
   scene = new Scene();
-  scene.add(new AmbientLight(0xffffff, 0.3));    // set ambient lighting to the screen (scene), a tint of color branching from one point or all over
+  scene.add(new AmbientLight(0xffffff, 0.3));    // Restored ambient lighting to make stars visible
   scene.background = new Color(0x000000);        // black space color
 
-  camera = new PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 30000);   // set camera view with increased far plane
+  camera = new PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100000);   // set camera view with greatly increased far plane
   camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-
-
-// three directional lights set to the screen to add a space effect to the globe
-
-  const dLight = new DirectionalLight(0x89c9f8, 1.8);    
+  camera.updateProjectionMatrix();  // Three directional lights set to the screen with minimal intensity
+  // Sun will be the primary light source, these are just for minimal ambient lighting
+  
+  const dLight = new DirectionalLight(0xffffff, 1.0);    // Changed to pure white light
   dLight.position.set(1, 1, 1);
   camera.add(dLight);
 
-  const dLight1 = new DirectionalLight(0x7982f6, 0.8);
+  const dLight1 = new DirectionalLight(0xffffff, 0.8);   // Changed to pure white light
   dLight1.position.set(0, 500, 500);
   camera.add(dLight1);
 
-  const dLight2 = new DirectionalLight(0x8566cc, 0.5);
+  const dLight2 = new DirectionalLight(0xffffff, 0.5);   // Changed to pure white light
   dLight2.position.set(-200, 500, 200);
   camera.add(dLight2);
 
@@ -316,7 +668,7 @@ function init() {
     initialPosition: new Vector3(0, 0, 400)
   };
 
-  scene.fog = new Fog(0x535ef3, 500, 4000);   // a fog to make sure the stars and everything in the background appears farther, extended for sun visibility
+  // Removed fog for better star visibility
 
   controls = new OrbitControls(camera, renderer.domElement);   // set basic default attribrutes to the globe and user controls
   controls.enableDamping = false;
@@ -324,7 +676,7 @@ function init() {
   controls.enablePan = false;
   controls.enableZoom = true;
   controls.minDistance = 115;
-  controls.maxDistance = 4000; // Increased to allow viewing the sun
+  controls.maxDistance = 50000; // Greatly increased to allow viewing Uranus and other distant celestial bodies
   controls.rotateSpeed = 0.8;
   controls.zoomSpeed = 1.0;
   controls.autoRotate = false;
@@ -333,10 +685,34 @@ function init() {
 
   window.addEventListener("resize", onWindowResize, false);
   window.addEventListener("mousemove", onMouseMove);
+  
+  // Initialize all celestial bodies
+  initGlobe();
+  initSun();
+  initMoon();
+  initMercury();
+  initVenus();
+  initMars();
+  initJupiter();
+  initSaturn();
+  initUranus();
+  initNeptune();
+  initAsteroidBelt();
+  
+  // Initialize additional features
+  createSpaceSkybox(scene); // Add space skybox
+  createSpaceBackground(scene); // Add stars, galaxies, and nebulae
+  shootingStars();
+  prepareAmbientMusic();
+  createButtons();
+  
   createCelestialMenu(); // Add the new celestial bodies menu
+  
+  // Make switchCameraFocus function globally accessible
+  window.switchCameraFocus = switchCameraFocus;
 }
 function initGlobe() {
-  const globeGroup = new Group();
+  globeGroup = new Group();
 
   Globe = new ThreeGlobe()
     .hexPolygonsData(countries.features)
@@ -446,47 +822,6 @@ function addCountryLabels() {
     globeGroup.add(sprite);
   });
 }
-function addStars() {
-  const starGeometry = new SphereGeometry(3, 8, 8);
-  const colors = [0x0000ff, 0xff0000, 0xffff00, 0xffffff, 0x00ff00];
-  
-  // Define multiple origin points for star clusters
-  const originPoints = [
-    {x: 0, y: 0, z: 0},              // Original center point
-    {x: -5000, y: 3000, z: 2000},    // New cluster point 1
-    {x: 6000, y: -2000, z: 4000},    // New cluster point 2
-    {x: -3000, y: -5000, z: -4000},  // New cluster point 3
-    {x: 7000, y: 5000, z: -3000},   // New cluster point 4
-    {x: 10000, y: 10000, z: 10000},    // Top-right-front octant
-    {x: -10000, y: -10000, z: -10000}, // Bottom-left-back octant
-    {x: 10000, y: -10000, z: 10000},   // Bottom-right-front octant
-    {x: -10000, y: 10000, z: -10000},  // Top-left-back octant
-    {x: -10000, y: 10000, z: 10000},   // Top-left-front octant
-    {x: 10000, y: -10000, z: -10000},
-  ];
-
-  // Distribute the 20000 stars among these origin points
-  for (let i = 0; i < 20000; i++) {
-    const starColor = colors[Math.floor(Math.random() * colors.length)];
-    const starMaterial = new MeshBasicMaterial({ color: starColor });
-    const star = new Mesh(starGeometry, starMaterial);
-
-    // Choose a random origin point for this star
-    const origin = originPoints[Math.floor(Math.random() * originPoints.length)];
-    
-    // Generate the star's position using spherical coordinates from the chosen origin
-    const distance = Math.random() * 10000 + 1500;
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.random() * Math.PI;
-
-    // Position relative to the chosen origin point - FIXED Z COORDINATE!
-    star.position.x = origin.x + distance * Math.sin(phi) * Math.cos(theta);
-    star.position.y = origin.y + distance * Math.sin(phi) * Math.sin(theta);
-    star.position.z = origin.z + distance * Math.cos(phi);  // This line was wrong
-
-    scene.add(star);
-  }
-}
 function shootingStars() {
   const globeRadius = 100;
   const maxDistance = 1500;
@@ -560,15 +895,20 @@ function shootingStars() {
   }, Math.random() * 2000 + 1000);
 }
 function prepareAmbientMusic() {
-  audio = new Audio(spaceMusic);
-  audio.loop = true;
-  audio.volume = 0.5;
+  try {
+    audio = new Audio(spaceMusic);
+    audio.loop = true;
+    audio.volume = 0.3;
 
-  window.addEventListener("click", playMusic);
-  window.addEventListener("keydown", playMusic);
+    window.addEventListener("click", playMusic);
+    window.addEventListener("keydown", playMusic);
+  } catch (error) {
+    console.warn("Audio file not found or invalid, skipping ambient music:", error);
+    audio = null;
+  }
 }
 function playMusic() {
-  if (!audioPlayed) {
+  if (!audioPlayed && audio) {
     audio.play().then(() => {
       audioPlayed = true;
       console.log("Ambient music is now playing.");
@@ -743,6 +1083,41 @@ function initVenus() {
   // Create Venus and add it to the scene
   venus = createVenus(scene, sun);
 }
+
+function initMars() {
+  // Create Mars and add it to the scene
+  mars = createMars(scene, sun);
+}
+
+// Initialize the asteroid belt
+let asteroidBelt; // Global reference to asteroid belt
+function initAsteroidBelt() {
+  // Create asteroid belt and add it to the scene
+  asteroidBelt = createAsteroidBelt(scene, sun);
+}
+
+// Initialize Jupiter
+function initJupiter() {
+  // Create Jupiter and add it to the scene
+  jupiter = createJupiter(scene, sun);
+}
+
+// Initialize Saturn
+function initSaturn() {
+  // Create Saturn and add it to the scene
+  saturn = createSaturn(scene, sun);
+}
+
+// Initialize Uranus
+function initUranus() {
+  uranus = createUranus(scene, sun);
+}
+
+// Initialize Neptune
+function initNeptune() {
+  neptune = createNeptune(scene, sun);
+}
+
 function addSunToggleButton() {
   // Create a container for toggle buttons at the bottom
   toggleButtonsContainer = document.createElement('div');
@@ -785,11 +1160,46 @@ function addSunToggleButton() {
   venusOrbitToggle.textContent = 'Venus Orbit: ON';
   Object.assign(venusOrbitToggle.style, buttonStyle);
 
+  // Create Mars orbit toggle button
+  const marsOrbitToggle = document.createElement('button');
+  marsOrbitToggle.textContent = 'Mars Orbit: ON';
+  Object.assign(marsOrbitToggle.style, buttonStyle);
+  toggleButtonsContainer.appendChild(marsOrbitToggle);
+
+  // Create Jupiter orbit toggle button
+  const jupiterOrbitToggle = document.createElement('button');
+  jupiterOrbitToggle.textContent = 'Jupiter Orbit: ON';
+  Object.assign(jupiterOrbitToggle.style, buttonStyle);
+  toggleButtonsContainer.appendChild(jupiterOrbitToggle);
+  
+  // Create Saturn orbit toggle button
+  const saturnOrbitToggle = document.createElement('button');
+  saturnOrbitToggle.textContent = 'Saturn Orbit: ON';
+  Object.assign(saturnOrbitToggle.style, buttonStyle);
+  toggleButtonsContainer.appendChild(saturnOrbitToggle);
+
+  // Create Uranus orbit toggle button
+  const uranusOrbitToggle = document.createElement('button');
+  uranusOrbitToggle.textContent = 'Uranus Orbit: ON';
+  Object.assign(uranusOrbitToggle.style, buttonStyle);
+  toggleButtonsContainer.appendChild(uranusOrbitToggle);
+
+  // Create Neptune orbit toggle button
+  const neptuneOrbitToggle = document.createElement('button');
+  neptuneOrbitToggle.textContent = 'Neptune Orbit: ON';
+  Object.assign(neptuneOrbitToggle.style, buttonStyle);
+  toggleButtonsContainer.appendChild(neptuneOrbitToggle);
+
   // Add buttons to toggle container
   toggleButtonsContainer.appendChild(sunToggleButton);
   toggleButtonsContainer.appendChild(earthOrbitToggle);
   toggleButtonsContainer.appendChild(mercuryOrbitToggle);
   toggleButtonsContainer.appendChild(venusOrbitToggle);
+  toggleButtonsContainer.appendChild(marsOrbitToggle);
+  toggleButtonsContainer.appendChild(jupiterOrbitToggle);
+  toggleButtonsContainer.appendChild(saturnOrbitToggle);
+  toggleButtonsContainer.appendChild(uranusOrbitToggle);
+  toggleButtonsContainer.appendChild(neptuneOrbitToggle);
 
   // Earth orbit toggle logic
   earthOrbitToggle.addEventListener('click', () => {
@@ -829,20 +1239,87 @@ function addSunToggleButton() {
     }
   });
 
-  // Sun toggle button logic
-  sunToggleButton.addEventListener('click', () => {
-    if (sun) {
-      const isVisible = Sun.toggleSunVisibility(sun);
-      sunToggleButton.textContent = `Sun: ${isVisible ? 'ON' : 'OFF'}`;
-      sunToggleButton.style.backgroundColor = isVisible ? '#444' : '#333';
-      sunToggleButton.style.border = isVisible ? '1px solid #666' : '1px solid #444';
+  // Mars orbit toggle logic
+  window.isMarsOrbiting = true;
+  marsOrbitToggle.addEventListener('click', () => {
+    window.isMarsOrbiting = !window.isMarsOrbiting;
+    marsOrbitToggle.textContent = `Mars Orbit: ${window.isMarsOrbiting ? 'ON' : 'OFF'}`;
+    marsOrbitToggle.style.backgroundColor = window.isMarsOrbiting ? '#444' : '#333';
+    marsOrbitToggle.style.border = window.isMarsOrbiting ? '1px solid #666' : '1px solid #444';
+    // Optionally reset Mars position when turning orbit off
+    if (!window.isMarsOrbiting && mars) {
+      mars.position.set(0, 0, 0);
     }
   });
   
-  document.body.appendChild(sunToggleButton);
+  // Jupiter orbit toggle logic
+  window.isJupiterOrbiting = true;
+  jupiterOrbitToggle.addEventListener('click', () => {
+    window.isJupiterOrbiting = !window.isJupiterOrbiting;
+    jupiterOrbitToggle.textContent = `Jupiter Orbit: ${window.isJupiterOrbiting ? 'ON' : 'OFF'}`;
+    jupiterOrbitToggle.style.backgroundColor = window.isJupiterOrbiting ? '#444' : '#333';
+    jupiterOrbitToggle.style.border = window.isJupiterOrbiting ? '1px solid #666' : '1px solid #444';
+    // Optionally reset Jupiter position when turning orbit off
+    if (!window.isJupiterOrbiting && jupiter) {
+      jupiter.position.set(sun.position.x, sun.position.y, sun.position.z);
+    }
+  });
+  
+  // Saturn orbit toggle logic
+  window.isSaturnOrbiting = true;
+  saturnOrbitToggle.addEventListener('click', () => {
+    window.isSaturnOrbiting = !window.isSaturnOrbiting;
+    saturnOrbitToggle.textContent = `Saturn Orbit: ${window.isSaturnOrbiting ? 'ON' : 'OFF'}`;
+    saturnOrbitToggle.style.backgroundColor = window.isSaturnOrbiting ? '#444' : '#333';
+    saturnOrbitToggle.style.border = window.isSaturnOrbiting ? '1px solid #666' : '1px solid #444';
+    // Optionally reset Saturn position when turning orbit off
+    if (!window.isSaturnOrbiting && saturn) {
+      saturn.position.set(sun.position.x, sun.position.y, sun.position.z);
+    }
+  });
+  
+  // Uranus orbit toggle logic
+  window.isUranusOrbiting = true;
+  uranusOrbitToggle.addEventListener('click', () => {
+    window.isUranusOrbiting = !window.isUranusOrbiting;
+    uranusOrbitToggle.textContent = `Uranus Orbit: ${window.isUranusOrbiting ? 'ON' : 'OFF'}`;
+    uranusOrbitToggle.style.backgroundColor = window.isUranusOrbiting ? '#444' : '#333';
+    uranusOrbitToggle.style.border = window.isUranusOrbiting ? '1px solid #666' : '1px solid #444';
+    // Optionally reset Uranus position when turning orbit off
+    if (!window.isUranusOrbiting && uranus) {
+      uranus.position.set(sun.position.x, sun.position.y, sun.position.z);
+    }
+  });
+
+  // Neptune orbit toggle logic
+  window.isNeptuneOrbiting = true;
+  neptuneOrbitToggle.addEventListener('click', () => {
+    window.isNeptuneOrbiting = !window.isNeptuneOrbiting;
+    neptuneOrbitToggle.textContent = `Neptune Orbit: ${window.isNeptuneOrbiting ? 'ON' : 'OFF'}`;
+    neptuneOrbitToggle.style.backgroundColor = window.isNeptuneOrbiting ? '#444' : '#333';
+    neptuneOrbitToggle.style.border = window.isNeptuneOrbiting ? '1px solid #666' : '1px solid #444';
+    // Optionally reset Neptune position when turning orbit off
+    if (!window.isNeptuneOrbiting && neptune) {
+      neptune.position.set(sun.position.x, sun.position.y, sun.position.z);
+    }
+  });
+  
+  // Create asteroid belt toggle button
+  const asteroidBeltToggle = document.createElement('button');
+  asteroidBeltToggle.textContent = 'Asteroid Belt: ON';
+  Object.assign(asteroidBeltToggle.style, buttonStyle);
+  toggleButtonsContainer.appendChild(asteroidBeltToggle);
+  
+  // Asteroid belt toggle logic
+  window.isAsteroidBeltOrbiting = true;
+  asteroidBeltToggle.addEventListener('click', () => {
+    const isVisible = toggleAsteroidBeltVisibility(asteroidBelt);
+    window.isAsteroidBeltOrbiting = isVisible;
+    asteroidBeltToggle.textContent = `Asteroid Belt: ${isVisible ? 'ON' : 'OFF'}`;
+    asteroidBeltToggle.style.backgroundColor = isVisible ? '#444' : '#333';
+    asteroidBeltToggle.style.border = isVisible ? '1px solid #666' : '1px solid #444';
+  });
 }
-// Moon toggle button removed
-// Mercury toggle button removed
 function animate() {
   const deltaTime = clock.getDelta(); // Get time since last frame
   
@@ -872,6 +1349,46 @@ function animate() {
     if (window.isVenusOrbiting !== false) { // Default to true if not set
       updateVenusPosition(venus, sun, deltaTime);
     }
+  }
+  
+  // Update Mars's position around the
+  if (mars && sun) {
+    if (window.isMarsOrbiting !== false) { // Default to true if not set
+      updateMarsPosition(mars, sun, deltaTime);
+    }
+  }
+  
+  // Update Jupiter's position around the Sun
+  if (jupiter && sun) {
+    if (window.isJupiterOrbiting !== false) { // Default to true if not set
+      updateJupiterPosition(jupiter, sun, deltaTime);
+    }
+  }
+  
+  // Update Saturn's position around the Sun
+  if (saturn && sun) {
+    if (window.isSaturnOrbiting !== false) { // Default to true if not set
+      updateSaturnPosition(saturn, sun, deltaTime);
+    }
+  }
+
+  // Update Uranus's position around the Sun
+  if (uranus && sun) {
+    if (window.isUranusOrbiting !== false) { // Default to true if not set
+      updateUranusPosition(uranus, sun, deltaTime);
+    }
+  }
+
+  // Update Neptune's position around the Sun
+  if (neptune && sun) {
+    if (window.isNeptuneOrbiting !== false) { // Default to true if not set
+      updateNeptunePosition(neptune, sun, deltaTime);
+    }
+  }
+
+  // Update asteroid belt if it exists
+  if (asteroidBelt && window.isAsteroidBeltOrbiting) {
+    updateAsteroidBelt(asteroidBelt, deltaTime);
   }
 
   // Update LRO position if it exists
@@ -911,6 +1428,23 @@ function updateCameraForMovingObjects() {
     targetPosition = mercury.position.clone();
   } else if (cameraFocus === 'venus' && venus) {
     targetPosition = venus.position.clone();
+  } else if (cameraFocus === 'mars' && mars) {
+    targetPosition = mars.position.clone();
+  } else if (cameraFocus === 'jupiter' && jupiter) {
+    targetPosition = jupiter.position.clone();
+  } else if (cameraFocus === 'saturn' && saturn) {
+    targetPosition = saturn.position.clone();
+    // Additional special handling for Saturn to ensure we're focusing on the planet center
+    // and not getting distracted by its rings
+    if (controls.target.distanceTo(targetPosition) > 0.1) {
+      controls.target.lerp(targetPosition, 0.1);
+    }
+  } else if (cameraFocus === 'asteroidbelt' && asteroidBelt) {
+    targetPosition = sun.position.clone(); // Asteroid belt is centered around the sun
+  } else if (cameraFocus === 'uranus' && uranus) {
+    targetPosition = uranus.position.clone();
+  } else if (cameraFocus === 'neptune' && neptune) {
+    targetPosition = neptune.position.clone();
   }
   
   if (targetPosition) {
@@ -955,7 +1489,42 @@ function createButtons() {
   menuContent.style.flexDirection = "column";
   menuContent.style.gap = "10px";
   menuContent.style.zIndex = "1000";
+  menuContent.style.border = "1px solid rgba(255, 255, 255, 0.3)";
   document.body.appendChild(menuContent);
+
+  // Add close button to main menu
+  const menuCloseButton = document.createElement("button");
+  menuCloseButton.innerHTML = "&times;";
+  menuCloseButton.style.position = "absolute";
+  menuCloseButton.style.top = "5px";
+  menuCloseButton.style.right = "5px";
+  menuCloseButton.style.width = "20px";
+  menuCloseButton.style.height = "20px";
+  menuCloseButton.style.border = "none";
+  menuCloseButton.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
+  menuCloseButton.style.color = "#ffffff";
+  menuCloseButton.style.borderRadius = "50%";
+  menuCloseButton.style.cursor = "pointer";
+  menuCloseButton.style.fontSize = "14px";
+  menuCloseButton.style.display = "flex";
+  menuCloseButton.style.alignItems = "center";
+  menuCloseButton.style.justifyContent = "center";
+  menuCloseButton.style.transition = "background-color 0.3s ease";
+  
+  menuCloseButton.addEventListener("mouseover", () => {
+    menuCloseButton.style.backgroundColor = "rgba(255, 255, 255, 0.4)";
+  });
+  
+  menuCloseButton.addEventListener("mouseout", () => {
+    menuCloseButton.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
+  });
+  
+  menuCloseButton.addEventListener("click", (e) => {
+    e.stopPropagation();
+    menuContent.style.display = "none";
+  });
+  
+  menuContent.appendChild(menuCloseButton);
 
   // Create Button 4 (Earthquake Data) - NEW BUTTON
   const earthquakeButton = document.createElement("button");
@@ -1423,17 +1992,128 @@ function switchCameraFocus(target, duration = 1.5) {
       controls.maxDistance = venusRadius * 20;
       break;
       
+    case 'mars':
+      if (!mars) return;
+      // Calculate distance from mars based on its size
+      const marsRadius = mars.geometry && mars.geometry.parameters && mars.geometry.parameters.radius ? mars.geometry.parameters.radius : 2;
+      distanceFactor = 2; // Get much closer to Mars
+      targetPosition = new Vector3(
+        mars.position.x - marsRadius * distanceFactor,
+        mars.position.y + marsRadius * distanceFactor * 0.5,
+        mars.position.z + marsRadius * distanceFactor
+      );
+      lookAtPosition = mars.position.clone();
+      cameraFocus = 'mars';
+      controls.enabled = false;
+      controls.minDistance = marsRadius * 0.5;
+      controls.maxDistance = marsRadius * 20;
+      break;
+      
+    case 'jupiter':
+      if (!jupiter) return;
+      // Calculate distance from jupiter based on its size
+      const jupiterRadius = jupiter.geometry && jupiter.geometry.parameters && jupiter.geometry.parameters.radius ? jupiter.geometry.parameters.radius : 2;
+      distanceFactor = 2; // Get much closer to Jupiter
+      targetPosition = new Vector3(
+        jupiter.position.x - jupiterRadius * distanceFactor,
+        jupiter.position.y + jupiterRadius * distanceFactor * 0.5,
+        jupiter.position.z + jupiterRadius * distanceFactor
+      );
+      lookAtPosition = jupiter.position.clone();
+      cameraFocus = 'jupiter';
+      controls.enabled = false;
+      controls.minDistance = jupiterRadius * 0.5;
+      controls.maxDistance = jupiterRadius * 20;
+      break;
+      
+    case 'saturn':
+      if (!saturn) return;
+      // Saturn is a Group containing the planet and rings, we need to get its actual size
+      // Either find the Saturn sphere in the group or use the predefined constant
+      const saturnPlanet = saturn.children.find(child => child.isMesh && !child.geometry.isRingGeometry);
+      const saturnRadius = saturnPlanet && saturnPlanet.geometry.parameters.radius ? 
+                          saturnPlanet.geometry.parameters.radius : SATURN_RADIUS * 30;
+      
+      // Calculate a suitable camera distance considering Saturn's rings
+      distanceFactor = 5; // Get farther from Saturn to view its rings
+      targetPosition = new Vector3(
+        saturn.position.x - saturnRadius * distanceFactor,
+        saturn.position.y + saturnRadius * 0.8,
+        saturn.position.z + saturnRadius * distanceFactor
+      );
+      lookAtPosition = saturn.position.clone();
+      cameraFocus = 'saturn';
+      controls.enabled = false;
+      controls.minDistance = saturnRadius * 1;
+      controls.maxDistance = saturnRadius * 30;
+      break;
+      
+    case 'asteroidbelt':
+      if (!asteroidBelt) return;
+      // For asteroid belt, we want a wide view to see the entire belt
+      // Find midpoint radius between inner and outer radius of asteroid belt
+      const midRadius = (Sun.ASTEROID_BELT_INNER_RADIUS + Sun.ASTEROID_BELT_OUTER_RADIUS) / 2;
+      const viewDistance = (Sun.ASTEROID_BELT_OUTER_RADIUS - Sun.ASTEROID_BELT_INNER_RADIUS) * 0.5;
+      
+      // Position camera at an angle to see the belt's width
+      targetPosition = new Vector3(
+        sun.position.x - midRadius * 0.7,
+        sun.position.y + viewDistance * 1.5,
+        sun.position.z + midRadius * 0.7
+      );
+      lookAtPosition = sun.position.clone(); // Look at the sun (center of the belt)
+      cameraFocus = 'asteroidbelt';
+                    
+                    
+      controls.minDistance = viewDistance * 0.5;
+      controls.maxDistance = midRadius * 3;
+      break;
+      
+    case 'uranus':
+      if (!uranus) return;
+      // Uranus is a Group containing the planet and rings, use the scaled radius
+      const uranusRadius = URANUS_RADIUS * 30; // Match the actual geometry scale
+      distanceFactor = 3;
+      targetPosition = new Vector3(
+        uranus.position.x + uranusRadius * distanceFactor,
+        uranus.position.y + uranusRadius * distanceFactor * 0.5,
+        uranus.position.z + uranusRadius * distanceFactor
+      );
+      lookAtPosition = uranus.position.clone();
+      cameraFocus = 'uranus';
+      controls.enabled = false;
+      controls.minDistance = uranusRadius * 0.5;
+      controls.maxDistance = uranusRadius * 20;
+      break;
+      
+    case 'neptune':
+      if (!neptune) return;
+      // Neptune is a Group containing the planet and rings, use the scaled radius
+      const neptuneRadius = NEPTUNE_RADIUS * 30; // Match the actual geometry scale
+      distanceFactor = 3;
+      targetPosition = new Vector3(
+        neptune.position.x + neptuneRadius * distanceFactor,
+        neptune.position.y + neptuneRadius * distanceFactor * 0.5,
+        neptune.position.z + neptuneRadius * distanceFactor
+      );
+      lookAtPosition = neptune.position.clone();
+      cameraFocus = 'neptune';
+      controls.enabled = true;  // Enable controls for orbiting
+      controls.minDistance = neptuneRadius * 1.5;
+      controls.maxDistance = neptuneRadius * 25;
+      break;
+      
     case 'earth':
     default:
       // Get a closer view of Earth
       const globeRadius = Globe.getGlobeRadius();
       targetPosition = new Vector3(
         globeGroup.position.x,
-        globeGroup.position.y + globeRadius * 0.5,
+               globeGroup.position.y + globeRadius * 0.5,
         globeGroup.position.z + globeRadius * 0.5 // was *4, now *2 for closer view
       );
       lookAtPosition = globeGroup.position.clone();
-      cameraFocus = 'earth';
+           cameraFocus = 'earth';
       
       // Reset control limits for Earth viewing
       controls.minDistance = 115;
@@ -1510,6 +2190,7 @@ function clearAstronautTools() {
   Globe.hexPolygonsData(countries.features);
   Globe.hexPolygonResolution(3);
   Globe.hexPolygonMargin(0.7);
+  
   
   // Clear custom meshes and objects
   globeGroup.children = globeGroup.children.filter(child => 
@@ -1632,11 +2313,10 @@ async function showISSTracker() {
           <div style="margin-bottom: 8px;">
             <span style="color: #aaa;">Altitude:</span> ${altitude} km
           </div>
-          <div style="margin-bottom: 8px;">
             <span style="color: #aaa;">Speed:</span> ${orbitalSpeed} km/s
           </div>
           <div style="margin-bottom: 8px;">
-            <span style="color: #aaa;">Orbital period:</span> ${orbitalPeriod} minutes
+            <span style="color: #aaa;">Orbital period:</span ${orbitalPeriod} minutes
           </div>
           <div style="margin-bottom: 8px;">
             <span style="color: #aaa;">Updated:</span> ${new Date().toLocaleTimeString()}
@@ -1673,11 +2353,12 @@ async function showSpaceWeatherMonitor() {
   }
   
   // Create info panel
+ 
   const verticalButton = document.getElementById("verticalButton");
   if (verticalButton) {
     verticalButton.innerHTML = `
       <div style="color: #ffffff; font-family: 'Montserrat', sans-serif;">
-        <h3 style="color: #FF6B6B; margin-bottom: 15px; font-size: 18px; text-align: center;">
+        <h3 style="color: #FF6B6B6B; margin-bottom: 15px; font-size: 18px; text-align: center;">
           Space Weather Monitor
         </h3>
         
@@ -1747,7 +2428,7 @@ async function showSpaceWeatherMonitor() {
       return {
         lat: randomLat,
         lng: randomLon,
-               color: '#FF5733',
+        color: '#FF5733',
         maxR: 5,
         propagationSpeed: 0.5,
         repeatPeriod: 2000
@@ -2072,115 +2753,15 @@ async function showSatelliteTracker() {
     }
   }
 }
-function addMercuryFocusButton() {
-  const mercuryFocusButton = document.createElement('button');
-  mercuryFocusButton.className = 'focus-button';
-  mercuryFocusButton.setAttribute('data-target', 'mercury');
-  mercuryFocusButton.textContent = 'Focus: Mercury';
-  mercuryFocusButton.style.position = 'absolute';
-  mercuryFocusButton.style.top = '50px';
-  mercuryFocusButton.style.left = '350px';
-  mercuryFocusButton.style.padding = '8px 12px';
-  mercuryFocusButton.style.backgroundColor = '#444';
-  mercuryFocusButton.style.color = 'white';
-  mercuryFocusButton.style.border = '1px solid #666';
-  mercuryFocusButton.style.borderRadius = '4px';
-  mercuryFocusButton.style.cursor = 'pointer';
-  mercuryFocusButton.style.zIndex = '1000';
-  
-  mercuryFocusButton.addEventListener('click', () => {
-    cameraFocus = 'mercury';
-    updateFocusButtonsUI();
+
+// Start the application when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    init();
+    animate();
   });
-  
-  document.body.appendChild(mercuryFocusButton);
-}
-
-function addVenusFocusButton() {
-  const venusFocusButton = document.createElement('button');
-  venusFocusButton.className = 'focus-button';
-  venusFocusButton.setAttribute('data-target', 'venus');
-  venusFocusButton.textContent = 'Focus: Venus';
-  venusFocusButton.style.position = 'absolute';
-  venusFocusButton.style.top = '50px';
-  venusFocusButton.style.left = '500px';
-  venusFocusButton.style.padding = '8px 12px';
-  venusFocusButton.style.backgroundColor = '#444';
-  venusFocusButton.style.color = 'white';
-  venusFocusButton.style.border = '1px solid #666';
-  venusFocusButton.style.borderRadius = '4px';
-  venusFocusButton.style.cursor = 'pointer';
-  venusFocusButton.style.zIndex = '1000';
-  
-  venusFocusButton.addEventListener('click', () => {
-    cameraFocus = 'venus';
-    updateFocusButtonsUI();
-  });
-  
-  document.body.appendChild(venusFocusButton);
-}
-
-// Helper functions for animations
-function stopCurrentAnimation() {
-  if (currentAnimation) {
-    clearTimeout(currentAnimation);
-    currentAnimation = null;
-  }
-}
-
-function stopCurrentTypeWriter() {
-  if (currentTypeWriter) {
-    clearTimeout(currentTypeWriter);
-    currentTypeWriter = null;
-  }
-}
-
-// Initialize everything
-init();
-globeGroup = initGlobe();
-drawCountryBorders();
-addCountryLabels();
-addStars();
-shootingStars();
-prepareAmbientMusic();
-initSun(); // Initialize the sun first
-initMercury(); // Initialize Mercury after sun
-initVenus(); // Initialize Venus after Mercury
-initMoon(); // Initialize the moon
-createCelestialMenu(); // Create menu after celestial bodies are initialized
-onWindowResize();
-animate();
-createButtons();
-initAstronautTools(); // Initialize Astronaut Tools system
-
-function initAstronautTools() {
-  // Initialize global collection for tracking interval IDs
-  window.astronautToolIntervals = window.astronautToolIntervals || [];
-  
-  // Initialize global variables for tracking active tools
-  window.activeAstronautTool = null;
-  window.currentToolCleanup = null;
-  
-  // Add global cleanup function to window for access from any component
-  window.clearAstronautTools = () => {
-    // Clean up any active tool
-    if (window.currentToolCleanup && typeof window.currentToolCleanup === 'function') {
-      window.currentToolCleanup();
-      window.currentToolCleanup = null;
-    }
-    
-    // Clear all intervals
-    if (window.astronautToolIntervals && window.astronautToolIntervals.length > 0) {
-      window.astronautToolIntervals.forEach(interval => clearInterval(interval));
-      window.astronautToolIntervals = [];
-    }
-    
-    // Clear active tool reference
-    window.activeAstronautTool = null;
-  };
-  
-  // Set up astronaut tools system
-  console.log('Astronaut Tools system initialized');
-  
-  // No need to do anything else at startup - tools are activated on demand via the menu
+} else {
+  // DOM is already loaded
+  init();
+  animate();
 }

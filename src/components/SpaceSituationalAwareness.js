@@ -748,24 +748,82 @@ const createARInterface = (scene, camera) => {
   
   // Add HUD content
   hudElement.innerHTML = `
-    <div style="text-align: center; color: #00FFFF; font-weight: bold; margin-bottom: 5px;">
-      AR SURVIVAL ASSIST
+    <div style="text-align: center; color: #00FFFF; font-weight: bold; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+      <span>SPACE SITUATIONAL AWARENESS</span>
+      <div style="display: flex; gap: 5px;">
+        <button id="ssa-minimize-btn" style="width: 20px; height: 20px; border: none; background: rgba(255,255,255,0.2); color: white; border-radius: 50%; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center;">&#8722;</button>
+        <button id="ssa-close-btn" style="width: 20px; height: 20px; border: none; background: rgba(255,255,255,0.2); color: white; border-radius: 50%; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center;">&times;</button>
+      </div>
     </div>
-    <div style="display: flex; align-items: center; margin-bottom: 5px;">
-      <div style="width: 12px; height: 12px; background-color: #FF0000; border-radius: 50%; margin-right: 8px;"></div>
-      <div>Threat indicators identify hazards</div>
-    </div>
-    <div style="display: flex; align-items: center; margin-bottom: 5px;">
-      <div style="width: 12px; height: 12px; background-color: #00FF00; border-radius: 50%; margin-right: 8px;"></div>
-      <div>Safe route waypoints</div>
-    </div>
-    <div style="display: flex; align-items: center;">
-      <div style="width: 12px; height: 12px; background-color: #FFFF00; border-radius: 50%; margin-right: 8px;"></div>
-      <div>Prediction markers</div>
+    <div id="ssa-content">
+      <div style="margin-bottom: 10px;">
+        <div style="font-weight: bold; color: #FFFFFF;">System Status:</div>
+        <div id="threat-level" style="color: #00FF00;">OPERATIONAL</div>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <div style="font-weight: bold; color: #FFFFFF;">Active Threats:</div>
+        <div id="active-threats" style="color: #FFFF00;">Scanning...</div>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <div style="font-weight: bold; color: #FFFFFF;">Survival Recommendations:</div>
+        <div id="survival-recommendations" style="color: #00FFFF; font-size: 12px;">System initializing...</div>
+      </div>
+      <div style="text-align: center; color: #00FFFF; font-weight: bold; margin-bottom: 5px;">
+        AR SURVIVAL ASSIST
+      </div>
+      <div style="display: flex; align-items: center; margin-bottom: 5px;">
+        <div style="width: 12px; height: 12px; background-color: #FF0000; border-radius: 50%; margin-right: 8px;"></div>
+        <div>Threat indicators identify hazards</div>
+      </div>
+      <div style="display: flex; align-items: center; margin-bottom: 5px;">
+        <div style="width: 12px; height: 12px; background-color: #00FF00; border-radius: 50%; margin-right: 8px;"></div>
+        <div>Safe route waypoints</div>
+      </div>
+      <div style="display: flex; align-items: center;">
+        <div style="width: 12px; height: 12px; background-color: #FFFF00; border-radius: 50%; margin-right: 8px;"></div>
+        <div>Prediction markers</div>
+      </div>
     </div>
   `;
   
   document.body.appendChild(hudElement);
+  
+  // Add event listeners for HUD controls
+  setTimeout(() => {
+    const minimizeBtn = document.getElementById('ssa-minimize-btn');
+    const closeBtn = document.getElementById('ssa-close-btn');
+    const content = document.getElementById('ssa-content');
+    
+    if (minimizeBtn && content) {
+      let isMinimized = false;
+      minimizeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        isMinimized = !isMinimized;
+        
+        if (isMinimized) {
+          content.style.display = 'none';
+          minimizeBtn.innerHTML = '&#43;'; // plus symbol
+          hudElement.style.width = 'auto';
+        } else {
+          content.style.display = 'block';
+          minimizeBtn.innerHTML = '&#8722;'; // minus symbol
+        }
+      });
+    }
+    
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        hudElement.style.display = 'none';
+        // Also update AR toggle button
+        const arToggleButton = document.getElementById('ar-toggle-button');
+        if (arToggleButton) {
+          arToggleButton.innerText = 'Enable AR Survival Mode';
+          arToggleButton.style.backgroundColor = '#00AAFF';
+        }
+      });
+    }
+  }, 100);
   
   // Add toggle button for AR interface
   const arToggleButton = document.createElement('div');
@@ -783,18 +841,56 @@ const createARInterface = (scene, camera) => {
   arToggleButton.style.cursor = 'pointer';
   arToggleButton.style.zIndex = '1500';
   arToggleButton.style.display = 'none'; // Hidden by default, shown when AR is available
+  arToggleButton.style.userSelect = 'none';
   arToggleButton.innerText = 'Enable AR Survival Mode';
   
-  arToggleButton.addEventListener('click', () => {
+  // Add close button to AR toggle
+  const arCloseButton = document.createElement('span');
+  arCloseButton.innerHTML = ' &times;';
+  arCloseButton.style.marginLeft = '8px';
+  arCloseButton.style.cursor = 'pointer';
+  arCloseButton.style.fontWeight = 'bold';
+  arToggleButton.appendChild(arCloseButton);
+  
+  arCloseButton.addEventListener('click', (e) => {
+    e.stopPropagation();
+    arToggleButton.style.display = 'none';
+    // Also hide the HUD if it's open
+    const hud = document.getElementById('space-sa-hud');
+    if (hud) {
+      hud.style.display = 'none';
+    }
+  });
+  
+  arToggleButton.addEventListener('click', (e) => {
+    // Prevent triggering if clicking the close button
+    if (e.target === arCloseButton) return;
+    
     const hud = document.getElementById('space-sa-hud');
     if (hud.style.display === 'none') {
       hud.style.display = 'block';
-      arToggleButton.innerText = 'Disable AR Survival Mode';
+      arToggleButton.innerHTML = 'Disable AR Survival Mode <span style="margin-left: 8px; cursor: pointer; font-weight: bold;">&times;</span>';
       arToggleButton.style.backgroundColor = '#FF5500';
+      
+      // Re-add close functionality to the new close button
+      const newCloseButton = arToggleButton.querySelector('span');
+      newCloseButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        arToggleButton.style.display = 'none';
+        hud.style.display = 'none';
+      });
     } else {
       hud.style.display = 'none';
-      arToggleButton.innerText = 'Enable AR Survival Mode';
+      arToggleButton.innerHTML = 'Enable AR Survival Mode <span style="margin-left: 8px; cursor: pointer; font-weight: bold;">&times;</span>';
       arToggleButton.style.backgroundColor = '#00AAFF';
+      
+      // Re-add close functionality to the new close button
+      const newCloseButton = arToggleButton.querySelector('span');
+      newCloseButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        arToggleButton.style.display = 'none';
+        hud.style.display = 'none';
+      });
     }
   });
   

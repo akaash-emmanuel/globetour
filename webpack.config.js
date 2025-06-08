@@ -41,6 +41,10 @@ export default {
         test: /\.(mp3|wav)$/,
         type: 'asset/resource',
       },
+      {
+        test: /\.(jpg|jpeg|png|gif)$/,
+        type: 'asset/resource',
+      },
     ],
   },
   resolve: {
