@@ -1,0 +1,205 @@
+{
+  "missionName": "Apollo 11",
+  "events": [
+    {
+      "timestamp": 0,
+      "description": "Saturn V Ignition - Kennedy Space Center",
+      "position": { "x": 0, "y": 0, "z": 0 },
+      "action": "launch",
+      "historicTime": "July 16, 1969 - 13:32:00 UTC",
+      "detail": "Saturn V rocket engines ignite, producing 7.5 million pounds of thrust"
+    },
+    {
+      "timestamp": 5,
+      "description": "Liftoff - Clear the Tower",
+      "position": { "x": 0, "y": 0.5, "z": 0 },
+      "action": "launch",
+      "historicTime": "July 16, 1969 - 13:32:01 UTC",
+      "detail": "Saturn V rocket lifts off from Launch Pad 39A"
+    },
+    {
+      "timestamp": 10,
+      "description": "Roll Program Complete",
+      "position": { "x": 0, "y": 2, "z": 0 },
+      "action": "launch",
+      "historicTime": "July 16, 1969 - 13:32:40 UTC",
+      "detail": "Saturn V completes roll maneuver to proper flight azimuth"
+    },
+    {
+      "timestamp": 20,
+      "description": "Earth orbit insertion",
+      "position": { "x": 5, "y": 8, "z": 0 },
+      "action": "earth_orbit",
+      "historicTime": "July 16, 1969 - 13:44:16 UTC",
+      "detail": "Saturn V third stage places Apollo 11 into Earth orbit at altitude of 118 miles"
+    },
+    {
+      "timestamp": 30,
+      "description": "First Earth Orbit",
+      "position": { "x": 10, "y": 8, "z": 10 },
+      "action": "earth_orbit",
+      "historicTime": "July 16, 1969 - 14:30:00 UTC",
+      "detail": "First complete orbit around Earth, all systems nominal"
+    },
+    {
+      "timestamp": 40,
+      "description": "Earth Orbit Coast Phase",
+      "position": { "x": 15, "y": 8, "z": 10 },
+      "action": "earth_orbit",
+      "historicTime": "July 16, 1969 - 15:22:00 UTC",
+      "detail": "Spacecraft completes 1.5 orbits while systems are checked"
+    },
+    {
+      "timestamp": 55,
+      "description": "Final Systems Check",
+      "position": { "x": 18, "y": 8, "z": 5 },
+      "action": "earth_orbit",
+      "historicTime": "July 16, 1969 - 16:10:00 UTC",
+      "detail": "Final systems check before translunar injection burn"
+    },
+    {
+      "timestamp": 60,
+      "description": "Translunar Injection Burn",
+      "position": { "x": 40, "y": 10, "z": 10 },
+      "action": "translunar",
+      "historicTime": "July 16, 1969 - 16:22:13 UTC",
+      "detail": "S-IVB third stage engine fires for 5 minutes 47 seconds to break from Earth orbit"
+    },
+    {
+      "timestamp": 80,
+      "description": "CSM Separation and Docking",
+      "position": { "x": 80, "y": 15, "z": 15 },
+      "action": "translunar",
+      "historicTime": "July 16, 1969 - 16:56:03 UTC",
+      "detail": "Command Module separates, turns and docks with Lunar Module"
+    },
+    {
+      "timestamp": 100,
+      "description": "Translunar Coast",
+      "position": { "x": 120, "y": 20, "z": 20 },
+      "action": "translunar",
+      "historicTime": "July 16, 1969 - 22:00:00 UTC",
+      "detail": "Spacecraft coasts toward the Moon, crew begins rest period"
+    },
+    {
+      "timestamp": 120,
+      "description": "Midcourse Correction",
+      "position": { "x": 150, "y": 25, "z": 25 },
+      "action": "midcourse",
+      "historicTime": "July 17, 1969 - 02:13:00 UTC",
+      "detail": "Small trajectory adjustment to refine path to Moon"
+    },
+    {
+      "timestamp": 150,
+      "description": "Approaching Moon",
+      "position": { "x": 220, "y": 20, "z": 20 },
+      "action": "midcourse",
+      "historicTime": "July 19, 1969 - 10:00:00 UTC",
+      "detail": "Apollo 11 approaches lunar sphere of influence"
+    },
+    {
+      "timestamp": 180,
+      "description": "Lunar Orbit Insertion Burn",
+      "position": { "x": 285, "y": 10, "z": 0 },
+      "action": "lunar_orbit",
+      "historicTime": "July 19, 1969 - 17:21:50 UTC",
+      "detail": "Service Module engine fires to enter lunar orbit at 69 miles altitude"
+    },
+    {
+      "timestamp": 190,
+      "description": "Lunar Orbit",
+      "position": { "x": 295, "y": 5, "z": 5 },
+      "action": "lunar_orbit",
+      "historicTime": "July 20, 1969 - 12:00:00 UTC",
+      "detail": "Spacecraft orbits the Moon, crew prepares for landing"
+    },
+    {
+      "timestamp": 200,
+      "description": "Undocking",
+      "position": { "x": 295, "y": 5, "z": 2 },
+      "action": "lunar_orbit",
+      "historicTime": "July 20, 1969 - 17:44:00 UTC",
+      "detail": "Eagle undocks from Columbia to begin descent"
+    },
+    {
+      "timestamp": 210,
+      "description": "Eagle Lunar Module Lands",
+      "position": { "x": 300, "y": 0, "z": 0 },
+      "action": "landing",
+      "historicTime": "July 20, 1969 - 20:17:40 UTC",
+      "detail": "\"Houston, Tranquility Base here. The Eagle has landed.\""
+    },
+    {
+      "timestamp": 225,
+      "description": "First Steps on Moon",
+      "position": { "x": 300, "y": 0, "z": 0 },
+      "action": "landing",
+      "historicTime": "July 21, 1969 - 02:56:15 UTC",
+      "detail": "\"That's one small step for man, one giant leap for mankind.\""
+    },
+    {
+      "timestamp": 240,
+      "description": "Lunar Ascent",
+      "position": { "x": 298, "y": 5, "z": 0 },
+      "action": "ascent",
+      "historicTime": "July 21, 1969 - 17:54:00 UTC",
+      "detail": "Eagle's ascent stage lifts off from lunar surface to rendezvous with Columbia"
+    },
+    {
+      "timestamp": 270,
+      "description": "Docking with Command Module",
+      "position": { "x": 290, "y": 10, "z": 0 },
+      "action": "ascent",
+      "historicTime": "July 21, 1969 - 21:35:00 UTC",
+      "detail": "Eagle docks with Columbia in lunar orbit"
+    },
+    {
+      "timestamp": 285,
+      "description": "Preparation for Return",
+      "position": { "x": 290, "y": 10, "z": 5 },
+      "action": "lunar_orbit",
+      "historicTime": "July 22, 1969 - 02:00:00 UTC",
+      "detail": "Crew prepares for trans-Earth injection burn"
+    },
+    {
+      "timestamp": 300,
+      "description": "Trans-Earth Injection Burn",
+      "position": { "x": 270, "y": 15, "z": 10 },
+      "action": "return",
+      "historicTime": "July 22, 1969 - 04:55:42 UTC",
+      "detail": "Service Module engine fires to break lunar orbit and begin journey home"
+    },
+    {
+      "timestamp": 320,
+      "description": "Return Midcourse Correction",
+      "position": { "x": 200, "y": 15, "z": 10 },
+      "action": "return",
+      "historicTime": "July 23, 1969 - 12:00:00 UTC",
+      "detail": "Small course correction on return journey to Earth"
+    },
+    {
+      "timestamp": 340,
+      "description": "Approaching Earth",
+      "position": { "x": 100, "y": 10, "z": 5 },
+      "action": "return",
+      "historicTime": "July 24, 1969 - 10:00:00 UTC",
+      "detail": "Apollo 11 approaches Earth's atmosphere"
+    },
+    {
+      "timestamp": 350,
+      "description": "Command Module Separation",
+      "position": { "x": 50, "y": 5, "z": 0 },
+      "action": "return",
+      "historicTime": "July 24, 1969 - 16:21:12 UTC",
+      "detail": "Columbia separates from Service Module prior to re-entry"
+    },
+    {
+      "timestamp": 360,
+      "description": "Splashdown in Pacific Ocean",
+      "position": { "x": 0, "y": 0, "z": 0 },
+      "action": "splashdown",
+      "historicTime": "July 24, 1969 - 16:50:35 UTC",
+      "detail": "Apollo 11 Command Module splashes down 825 miles southwest of Hawaii"
+    }
+  ]
+}

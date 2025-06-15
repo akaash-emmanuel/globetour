@@ -18,12 +18,52 @@ import {
 const UNIVERSE_RADIUS = 100000; // Very large radius for the skybox
 const STAR_DISTANCE_MIN = 60000; // Minimum distance for stars from origin (farther than max camera distance)
 const STAR_DISTANCE_MAX = 95000; // Maximum distance for stars from origin (within universe radius)
-const STAR_COUNT = 12000; // Number of stars
-const GALAXY_COUNT = 22; // Increased from 18 to 22 for more visual interest
-const NEBULA_COUNT = 10; // Increased from 8 to 10
-const DUST_PARTICLE_COUNT = 30000; // Increased number of dust particles
-const INTERSTELLAR_PARTICLE_COUNT = 15000; // Number of subtle interstellar particles
-const GALAXY_MIN_DISTANCE = UNIVERSE_RADIUS * 0.45; // Increased minimum distance between galaxies
+const STAR_COUNT = 15000; // Increased star count for richer background
+const GALAXY_COUNT = 35; // Significantly increased for more realistic space density
+const NEBULA_COUNT = 12; // More nebulae for visual interest
+const DUST_PARTICLE_COUNT = 40000; // More cosmic dust
+const INTERSTELLAR_PARTICLE_COUNT = 20000; // More interstellar particles
+const GALAXY_MIN_DISTANCE = UNIVERSE_RADIUS * 0.35; // Reduced for better distribution
+
+// Galaxy type probabilities (realistic distribution)
+const GALAXY_TYPES = {
+  SPIRAL: { id: 0, probability: 0.61, name: 'Spiral' },
+  BARRED_SPIRAL: { id: 1, probability: 0.25, name: 'Barred Spiral' }, 
+  ELLIPTICAL: { id: 2, probability: 0.10, name: 'Elliptical' },
+  LENTICULAR: { id: 3, probability: 0.03, name: 'Lenticular' },
+  IRREGULAR: { id: 4, probability: 0.01, name: 'Irregular' }
+};
+
+// Helper to pick a random galaxy type based on probabilities
+function getRandomGalaxyType() {
+  const types = Object.values(GALAXY_TYPES);
+  const rand = Math.random();
+  let sum = 0;
+  for (let i = 0; i < types.length; i++) {
+    sum += types[i].probability;
+    if (rand < sum) return types[i].id;
+  }
+  // Fallback in case of rounding errors
+  return GALAXY_TYPES.SPIRAL.id;
+}
+
+// Helper to get particle count based on galaxy type
+function getParticleCountForGalaxyType(galaxyType) {
+  switch(galaxyType) {
+    case GALAXY_TYPES.ELLIPTICAL.id:
+      return 2000 + Math.floor(Math.random() * 3000); // 2000-5000 particles
+    case GALAXY_TYPES.SPIRAL.id:
+      return 4000 + Math.floor(Math.random() * 4000); // 4000-8000 particles
+    case GALAXY_TYPES.BARRED_SPIRAL.id:
+      return 3500 + Math.floor(Math.random() * 3500); // 3500-7000 particles
+    case GALAXY_TYPES.LENTICULAR.id:
+      return 1500 + Math.floor(Math.random() * 2500); // 1500-4000 particles
+    case GALAXY_TYPES.IRREGULAR.id:
+      return 1000 + Math.floor(Math.random() * 2000); // 1000-3000 particles
+    default:
+      return 3000 + Math.floor(Math.random() * 3000); // Default: 3000-6000 particles
+  }
+}
 
 // Create a complete space background with stars, galaxies, and nebulae
 export const createSpaceBackground = (scene, sunPosition) => {
@@ -235,28 +275,61 @@ const addGalaxies = (container) => {
   for (let i = 0; i < galaxyPositions.length; i++) {
     const position = galaxyPositions[i];
     
-    // Galaxy parameters - more variety in size and arms
-    // More realistic types: spiral, barred spiral, elliptical
-    const galaxyType = Math.floor(Math.random() * 3); // 0: spiral, 1: barred spiral, 2: elliptical
-    const particleCount = 4000 + Math.floor(Math.random() * 6000);
+    // Galaxy parameters - enhanced variety with realistic distribution
+    const galaxyType = getRandomGalaxyType();
+    const particleCount = getParticleCountForGalaxyType(galaxyType);
     
-    // Galaxy size depends on type
-    let galaxySize;
-    let spiralArms;
-    let spiralTightness;
+    // Galaxy size and structure parameters based on type
+    let galaxySize, spiralArms, spiralTightness, bulgeness, diskFlatness;
     
-    if (galaxyType === 2) { // Elliptical
-      galaxySize = 3000 + Math.random() * 12000;
-      spiralArms = 0;
-      spiralTightness = 0;
-    } else if (galaxyType === 1) { // Barred spiral
-      galaxySize = 4000 + Math.random() * 10000;
-      spiralArms = 2 + Math.floor(Math.random() * 2) * 2; // 2 or 4 arms
-      spiralTightness = 1.5 + Math.random() * 2.5;
-    } else { // Regular spiral
-      galaxySize = 3000 + Math.random() * 8000;
-      spiralArms = 2 + Math.floor(Math.random() * 3) * 2; // 2, 4, or 6 arms
-      spiralTightness = 2 + Math.random() * 4;
+    switch(galaxyType) {
+      case GALAXY_TYPES.ELLIPTICAL.id:
+        galaxySize = 2000 + Math.random() * 15000; // Wide size range
+        spiralArms = 0;
+        spiralTightness = 0;
+        bulgeness = 0.8 + Math.random() * 0.2; // Very bulgy
+        diskFlatness = 0.3 + Math.random() * 0.4; // Quite flat to round
+        break;
+        
+      case GALAXY_TYPES.SPIRAL.id:
+        galaxySize = 3000 + Math.random() * 12000;
+        spiralArms = [2, 2, 3, 4, 4][Math.floor(Math.random() * 5)]; // Realistic arm distribution
+        spiralTightness = 0.8 + Math.random() * 2.5; // Tighter spirals
+        bulgeness = 0.15 + Math.random() * 0.25; // Moderate bulge
+        diskFlatness = 0.05 + Math.random() * 0.1; // Very flat disk
+        break;
+        
+      case GALAXY_TYPES.BARRED_SPIRAL.id:
+        galaxySize = 3500 + Math.random() * 10000;
+        spiralArms = [2, 2, 4][Math.floor(Math.random() * 3)]; // Usually 2 or 4 arms
+        spiralTightness = 1.2 + Math.random() * 2.0;
+        bulgeness = 0.2 + Math.random() * 0.2; // Moderate bulge
+        diskFlatness = 0.04 + Math.random() * 0.08; // Very flat
+        break;
+        
+      case GALAXY_TYPES.LENTICULAR.id:
+        galaxySize = 2500 + Math.random() * 8000;
+        spiralArms = 0;
+        spiralTightness = 0;
+        bulgeness = 0.4 + Math.random() * 0.3; // Large bulge
+        diskFlatness = 0.03 + Math.random() * 0.05; // Very flat disk
+        break;
+        
+      case GALAXY_TYPES.IRREGULAR.id:
+        galaxySize = 1500 + Math.random() * 6000; // Usually smaller
+        spiralArms = 0;
+        spiralTightness = 0;
+        bulgeness = 0.1 + Math.random() * 0.4; // Variable structure
+        diskFlatness = 0.2 + Math.random() * 0.6; // Quite thick
+        break;
+        
+      default:
+        // Fallback to spiral
+        galaxySize = 3000 + Math.random() * 8000;
+        spiralArms = 2 + Math.floor(Math.random() * 3) * 2;
+        spiralTightness = 2 + Math.random() * 4;
+        bulgeness = 0.2;
+        diskFlatness = 0.08;
     }
     
     // Create galaxy geometry with central black hole
@@ -269,27 +342,62 @@ const addGalaxies = (container) => {
     const accretionDiskSize = blackHoleSize * 2.2;
     const blackHoleParticleCount = 500 + Math.floor(Math.random() * 300);
     
-    // More realistic galaxy colors based on type
-    let galaxyHue, coreSaturation, coreLightness;
+    // Enhanced galaxy colors based on type and age
+    let galaxyHue, coreSaturation, coreLightness, galaxyAge;
     
-    if (galaxyType === 2) { // Elliptical - yellowish/reddish
-      galaxyHue = 0.05 + Math.random() * 0.1; // Yellowish to reddish
-      coreSaturation = 0.2 + Math.random() * 0.1;
-      coreLightness = 0.7 + Math.random() * 0.1;
-    } else if (galaxyType === 1) { // Barred spiral - often blueish/whiteish
-      galaxyHue = 0.55 + Math.random() * 0.1; // Blueish
-      coreSaturation = 0.3 + Math.random() * 0.2;
-      coreLightness = 0.75 + Math.random() * 0.15;
-    } else { // Regular spiral - varied colors
-      galaxyHue = Math.random(); // Any hue
-      coreSaturation = 0.2 + Math.random() * 0.3;
-      coreLightness = 0.7 + Math.random() * 0.2;
+    switch(galaxyType) {
+      case GALAXY_TYPES.ELLIPTICAL.id:
+        // Ellipticals are old, red galaxies
+        galaxyHue = 0.02 + Math.random() * 0.08; // Red to orange
+        coreSaturation = 0.15 + Math.random() * 0.15;
+        coreLightness = 0.6 + Math.random() * 0.2;
+        galaxyAge = 0.8 + Math.random() * 0.2; // Old galaxies
+        break;
+        
+      case GALAXY_TYPES.SPIRAL.id:
+        // Spirals have ongoing star formation - more blue
+        galaxyHue = 0.55 + Math.random() * 0.15; // Blue to blue-white
+        coreSaturation = 0.2 + Math.random() * 0.3;
+        coreLightness = 0.7 + Math.random() * 0.2;
+        galaxyAge = 0.3 + Math.random() * 0.5; // Mixed ages
+        break;
+        
+      case GALAXY_TYPES.BARRED_SPIRAL.id:
+        // Similar to spirals but often slightly redder cores
+        galaxyHue = 0.52 + Math.random() * 0.18;
+        coreSaturation = 0.25 + Math.random() * 0.25;
+        coreLightness = 0.65 + Math.random() * 0.25;
+        galaxyAge = 0.4 + Math.random() * 0.4;
+        break;
+        
+      case GALAXY_TYPES.LENTICULAR.id:
+        // Intermediate between ellipticals and spirals
+        galaxyHue = 0.08 + Math.random() * 0.12; // Yellow to orange
+        coreSaturation = 0.18 + Math.random() * 0.2;
+        coreLightness = 0.65 + Math.random() * 0.2;
+        galaxyAge = 0.6 + Math.random() * 0.3;
+        break;
+        
+      case GALAXY_TYPES.IRREGULAR.id:
+        // Young, star-forming galaxies - very blue
+        galaxyHue = 0.58 + Math.random() * 0.12; // Blue
+        coreSaturation = 0.4 + Math.random() * 0.4;
+        coreLightness = 0.75 + Math.random() * 0.2;
+        galaxyAge = 0.1 + Math.random() * 0.4; // Young galaxies
+        break;
+        
+      default:
+        galaxyHue = Math.random();
+        coreSaturation = 0.2 + Math.random() * 0.3;
+        coreLightness = 0.7 + Math.random() * 0.2;
+        galaxyAge = 0.5;
     }
     
     const coreColor = new Color().setHSL(galaxyHue, coreSaturation, coreLightness);
-    const armColor = new Color().setHSL((galaxyHue + 0.05) % 1, coreSaturation + 0.3, coreLightness - 0.1);
-    const edgeColor = new Color().setHSL((galaxyHue + 0.1) % 1, coreSaturation + 0.5, coreLightness - 0.2);
-    const accretionDiskColor = new Color().setHSL((galaxyHue + 0.3) % 1, 0.8, 0.5);
+    const armColor = new Color().setHSL((galaxyHue + 0.05) % 1, Math.min(1, coreSaturation + 0.2), coreLightness - 0.05);
+    const edgeColor = new Color().setHSL((galaxyHue + 0.1) % 1, Math.min(1, coreSaturation + 0.4), coreLightness - 0.15);
+    const starFormationColor = new Color().setHSL(0.6, 0.8, 0.85); // Bright blue for star formation
+    const accretionDiskColor = new Color().setHSL((galaxyHue + 0.3) % 1, 0.8, 0.6);
     
     // Create rotation matrix to give galaxy a random orientation
     const galaxyRotationX = Math.random() * Math.PI * 2;
@@ -300,72 +408,136 @@ const addGalaxies = (container) => {
       let x, y, z;
       let distFromCenter;
       
-      if (galaxyType === 2) {
-        // Elliptical galaxy - 3D ellipsoid distribution
+      if (galaxyType === GALAXY_TYPES.ELLIPTICAL.id) {
+        // Elliptical galaxy - 3D ellipsoid distribution with more realistic shape
         const u = Math.random();
         const v = Math.random();
         const theta = 2 * Math.PI * u;
         const phi = Math.acos(2 * v - 1);
         
-        // Random point within ellipsoid
-        const axes = [1.0, 0.8 + Math.random() * 0.4, 0.6 + Math.random() * 0.3]; // x, y, z axes of ellipsoid
-        distFromCenter = Math.pow(Math.random(), 0.5); // More particles toward the edge
+        // More varied ellipsoid axes for realistic elliptical shapes
+        const eccentricity = 0.3 + Math.random() * 0.6; // How elongated
+        const axes = [1.0, eccentricity, eccentricity * (0.5 + Math.random() * 0.5)];
+        
+        // R^(1/4) distribution for more realistic surface brightness profile
+        distFromCenter = Math.pow(Math.random(), 0.25);
         
         x = distFromCenter * axes[0] * galaxySize * Math.sin(phi) * Math.cos(theta);
         y = distFromCenter * axes[1] * galaxySize * Math.sin(phi) * Math.sin(theta);
         z = distFromCenter * axes[2] * galaxySize * Math.cos(phi);
-      } else {
-        // Spiral galaxies
-        // Distance from center, normalized to [0, 1]
-        distFromCenter = Math.pow(Math.random(), 0.5); // Square root for more particles in outer rings
         
-        // Determine if the particle is in the central bulge/bar or in an arm
-        const isCentralBulge = Math.random() < 0.15 || distFromCenter < 0.2;
+      } else if (galaxyType === GALAXY_TYPES.LENTICULAR.id) {
+        // Lenticular galaxy - disk-like but no spiral arms
+        distFromCenter = Math.pow(Math.random(), 0.6); // Concentrated toward center
+        const angle = Math.random() * Math.PI * 2;
+        
+        x = Math.cos(angle) * distFromCenter * galaxySize;
+        y = Math.sin(angle) * distFromCenter * galaxySize;
+        z = (Math.random() - 0.5) * galaxySize * diskFlatness;
+        
+        // Add central bulge
+        if (distFromCenter < bulgeness) {
+          const bulgeHeight = galaxySize * (0.15 + Math.random() * 0.1);
+          z += (Math.random() - 0.5) * bulgeHeight;
+        }
+        
+      } else if (galaxyType === GALAXY_TYPES.IRREGULAR.id) {
+        // Irregular galaxy - chaotic, clumpy structure
+        const clumpCount = 3 + Math.floor(Math.random() * 5);
+        const clumpIndex = Math.floor(Math.random() * clumpCount);
+        
+        // Create offset clumps
+        const clumpAngle = (clumpIndex / clumpCount) * Math.PI * 2;
+        const clumpDistance = Math.random() * galaxySize * 0.7;
+        const clumpSize = galaxySize * (0.2 + Math.random() * 0.3);
+        
+        const centerX = Math.cos(clumpAngle) * clumpDistance;
+        const centerY = Math.sin(clumpAngle) * clumpDistance;
+        
+        // Random distribution around clump center
+        const localRadius = Math.pow(Math.random(), 0.3) * clumpSize;
+        const localAngle = Math.random() * Math.PI * 2;
+        const localPhi = Math.acos(2 * Math.random() - 1);
+        
+        x = centerX + localRadius * Math.sin(localPhi) * Math.cos(localAngle);
+        y = centerY + localRadius * Math.sin(localPhi) * Math.sin(localAngle);
+        z = (Math.random() - 0.5) * galaxySize * diskFlatness;
+        
+        distFromCenter = Math.sqrt(x*x + y*y) / galaxySize;
+      } else {
+        // Enhanced spiral galaxies with realistic logarithmic spirals
+        distFromCenter = Math.pow(Math.random(), 0.6); // More particles in outer regions
+        
+        // Determine particle location type
+        const isCentralBulge = distFromCenter < bulgeness;
+        const isBar = (galaxyType === GALAXY_TYPES.BARRED_SPIRAL.id) && !isCentralBulge && distFromCenter < 0.4;
         
         if (isCentralBulge) {
-          // Central bulge/bar - ellipsoidal distribution
-          const bulgeSize = galaxySize * 0.2;
+          // Central bulge - spheroidal distribution
+          const bulgeSize = galaxySize * bulgeness;
           const u = Math.random();
           const v = Math.random();
           const theta = 2 * Math.PI * u;
           const phi = Math.acos(2 * v - 1);
           
-          if (galaxyType === 1) { // Barred spiral - elongated bar
-            const barLength = galaxySize * 0.5;
-            const barWidth = galaxySize * 0.1;
-            const barHeight = galaxySize * 0.05;
-            
-            x = (Math.random() - 0.5) * barLength;
-            y = (Math.random() - 0.5) * barWidth;
-            z = (Math.random() - 0.5) * barHeight;
-          } else { // Regular spiral - spheroidal bulge
-            x = bulgeSize * Math.sin(phi) * Math.cos(theta);
-            y = bulgeSize * Math.sin(phi) * Math.sin(theta);
-            z = bulgeSize * Math.cos(phi) * 0.6; // Slightly flattened
-          }
+          x = bulgeSize * Math.sin(phi) * Math.cos(theta);
+          y = bulgeSize * Math.sin(phi) * Math.sin(theta);
+          z = bulgeSize * Math.cos(phi) * 0.7; // Slightly flattened bulge
+          
+        } else if (isBar) {
+          // Bar structure for barred spirals
+          const barLength = galaxySize * 0.6;
+          const barWidth = galaxySize * 0.15;
+          const barHeight = galaxySize * 0.08;
+          
+          x = (Math.random() - 0.5) * barLength;
+          y = (Math.random() - 0.5) * barWidth;
+          z = (Math.random() - 0.5) * barHeight;
+          
         } else {
-          // Spiral arms
+          // Improved logarithmic spiral arms
           const scaledDist = distFromCenter * galaxySize;
           
-          // Angle based on distance and spiral arm number
-          const baseAngle = Math.random() * Math.PI * 2;
-          const armOffset = (j % spiralArms) * (Math.PI * 2 / spiralArms);
-          const spiralAngle = baseAngle + armOffset + distFromCenter * spiralTightness;
+          // Choose which arm this particle belongs to
+          const armIndex = Math.floor(Math.random() * spiralArms);
+          const armOffset = (armIndex * Math.PI * 2) / spiralArms;
           
-          // More accurate logarithmic spiral formula
-          const armWidth = 0.1 + 0.2 * distFromCenter; // Arms get wider further out
-          const inArm = Math.random() < 0.7; // 70% chance to be in arm vs between arms
+          // Logarithmic spiral equation: r = a * e^(b*θ)
+          // Rearranged: θ = (1/b) * ln(r/a)
+          const spiralConstant = 1.0 / spiralTightness;
+          const baseRadius = galaxySize * 0.1; // Starting radius of spiral
           
-          // Position with better arm definition
-          const radialJitter = inArm ? 
-                           (armWidth * (Math.random() - 0.5)) * scaledDist : 
-                           (0.3 + Math.random() * 0.5) * scaledDist; // Larger jitter for inter-arm particles
+          // Calculate angle for logarithmic spiral
+          let spiralAngle;
+          if (scaledDist > baseRadius) {
+            spiralAngle = spiralConstant * Math.log(scaledDist / baseRadius);
+          } else {
+            spiralAngle = 0;
+          }
           
-          x = Math.cos(spiralAngle) * (scaledDist + radialJitter);
-          y = Math.sin(spiralAngle) * (scaledDist + radialJitter);
+          // Add arm offset and some randomness
+          const totalAngle = spiralAngle + armOffset + (Math.random() - 0.5) * 0.3;
           
-          // Z-position determines galaxy thickness (thinner in center, thicker on edges)
-          const thickness = 30 + distFromCenter * distFromCenter * 200;
+          // Arm width varies with radius (wider towards edges)
+          const armWidthFactor = 0.08 + 0.12 * distFromCenter;
+          const inArmProbability = Math.exp(-Math.pow(distFromCenter - 0.5, 2) * 8); // Peak at mid-radius
+          
+          let radialOffset = 0;
+          if (Math.random() < inArmProbability) {
+            // In spiral arm - tighter distribution
+            radialOffset = (Math.random() - 0.5) * armWidthFactor * scaledDist;
+          } else {
+            // Between arms - wider, sparser distribution
+            radialOffset = (Math.random() - 0.5) * armWidthFactor * scaledDist * 2;
+          }
+          
+          const finalRadius = scaledDist + radialOffset;
+          
+          x = Math.cos(totalAngle) * finalRadius;
+          y = Math.sin(totalAngle) * finalRadius;
+          
+          // Disk thickness varies with radius and galaxy type
+          const thickness = galaxySize * diskFlatness * (1 + distFromCenter * 2);
           z = (Math.random() - 0.5) * thickness;
         }
       }
@@ -383,46 +555,78 @@ const addGalaxies = (container) => {
       
       vertices.push(x, y, z);
       
-      // More sophisticated color gradation
+      // Enhanced color assignment based on galaxy type and stellar populations
       const color = new Color();
       
-      if (galaxyType === 2) { // Elliptical galaxy
-        // Smooth central brightness
-        const brightness = Math.max(0, 1.0 - distFromCenter * distFromCenter);
+      if (galaxyType === GALAXY_TYPES.ELLIPTICAL.id) {
+        // Elliptical galaxies - old stellar population, red colors
+        const brightness = Math.max(0.1, 1.2 - distFromCenter * distFromCenter);
         color.copy(coreColor).multiplyScalar(brightness);
+        
+        // Add some red giants and occasional bright stars
+        if (Math.random() < 0.02) {
+          color.setHSL(0.0, 0.8, 0.7); // Red giants
+        }
+        
+      } else if (galaxyType === GALAXY_TYPES.LENTICULAR.id) {
+        // Lenticular - intermediate between elliptical and spiral
+        const brightness = Math.max(0.1, 1.0 - distFromCenter * 0.8);
+        color.copy(coreColor).multiplyScalar(brightness);
+        
+        if (distFromCenter < bulgeness) {
+          color.copy(coreColor).multiplyScalar(1.2); // Bright bulge
+        }
+        
+      } else if (galaxyType === GALAXY_TYPES.IRREGULAR.id) {
+        // Irregular galaxies - lots of star formation, very blue
+        const brightness = 0.6 + Math.random() * 0.6;
+        color.copy(starFormationColor).multiplyScalar(brightness);
+        
+        // Lots of HII regions and star formation
+        if (Math.random() < 0.3) {
+          color.setHSL(0.6, 0.9, 0.9); // Very bright blue stars
+        } else if (Math.random() < 0.1) {
+          color.setHSL(0.95, 0.8, 0.7); // Pink HII regions
+        }
+        
       } else {
-        // Spiral galaxies have more structured color patterns
-        const isCentralBulge = distFromCenter < 0.2;
-        const isInArm = (j % spiralArms) === 0 || (j % spiralArms) === 1; // First two particles of each spiral count
+        // Spiral and barred spiral galaxies
+        const isCentralBulge = distFromCenter < bulgeness;
+        const isInArm = j % (spiralArms * Math.ceil(particleCount / (spiralArms * 100))) < Math.ceil(particleCount / (spiralArms * 100));
         
         if (isCentralBulge) {
-          // Galaxy core - bright and saturated
-          color.copy(coreColor);
+          // Galaxy bulge - older, redder stars
+          const bulgeColor = new Color().setHSL(galaxyHue - 0.05, coreSaturation * 0.8, coreLightness);
+          color.copy(bulgeColor);
           
-          // Add bright core flare to some galaxies
-          if (Math.random() < 0.7 && distFromCenter < 0.05) {
-            color.multiplyScalar(1.5); // Extra brightness for the very center
+          // Bright core
+          if (distFromCenter < bulgeness * 0.3) {
+            color.multiplyScalar(1.5);
           }
-        } else if (isInArm && distFromCenter < 0.7) {
-          // Galaxy arms - blend from core to edge color with star formation regions
-          const blend = (distFromCenter - 0.2) / 0.5;
+          
+        } else if (isInArm && distFromCenter > bulgeness) {
+          // Spiral arms - active star formation
+          const blend = Math.max(0, (distFromCenter - bulgeness) / (1 - bulgeness));
           color.copy(coreColor).lerp(armColor, blend);
           
-          // Occasional bright star formation regions in arms
-          if (Math.random() < 0.15) {
-            // Young blue stars in arms
-            color.setHSL(0.6, 0.8, 0.8); // Bright blue
+          // Star formation regions in arms
+          if (Math.random() < 0.08 * (1 - galaxyAge)) {
+            color.copy(starFormationColor); // Bright blue star formation
+          } else if (Math.random() < 0.03) {
+            color.setHSL(0.95, 0.7, 0.6); // Pink HII regions
           }
-        } else if (distFromCenter < 0.85) {
-          // Galaxy disc - blend from core to edge color
-          const blend = (distFromCenter - 0.2) / 0.65;
-          color.copy(coreColor).lerp(armColor, blend * 0.7);
-          color.multiplyScalar(0.8); // Slightly dimmer than arms
+          
         } else {
-          // Galaxy edge - fading out
-          const blend = (distFromCenter - 0.85) / 0.15;
-          color.copy(armColor).lerp(edgeColor, blend);
-          color.multiplyScalar(0.6); // Dimmer at edges
+          // Disk between arms - intermediate age stars
+          const blend = Math.max(0, (distFromCenter - bulgeness) / (1 - bulgeness));
+          color.copy(coreColor).lerp(edgeColor, blend * 0.6);
+          color.multiplyScalar(0.7); // Dimmer than arms
+        }
+        
+        // Edge fading for all spiral types
+        if (distFromCenter > 0.85) {
+          const fadeFactor = Math.max(0.2, 1.0 - (distFromCenter - 0.85) / 0.15);
+          color.multiplyScalar(fadeFactor);
         }
       }
       
@@ -813,8 +1017,8 @@ const addCosmicDust = (container) => {
           
         case 'disc':
           // Disc/ring structure
-          const discRadius = cloud.radius * (0.5 + 0.5 * Math.random());
-          const discAngle = Math.random() * Math.PI * 2;
+          let discRadius = cloud.radius * (0.5 + 0.5 * Math.random());
+          let discAngle = Math.random() * Math.PI * 2;
           
           x = cloud.center.x + discRadius * Math.cos(discAngle);
           y = cloud.center.y + discRadius * Math.sin(discAngle);
@@ -827,11 +1031,9 @@ const addCosmicDust = (container) => {
           const distance = cloud.radius * Math.pow(Math.random(), 0.7);
           const cloudTheta = Math.random() * Math.PI * 2;
           const cloudPhi = Math.acos(2 * Math.random() - 1);
-          
           x = cloud.center.x + distance * Math.sin(cloudPhi) * Math.cos(cloudTheta);
           y = cloud.center.y + distance * Math.sin(cloudPhi) * Math.sin(cloudTheta);
           z = cloud.center.z + distance * Math.cos(cloudPhi);
-          
           // Add fractal noise (simplified)
           const noiseScale = cloud.radius * 0.1;
           x += (Math.random() - 0.5) * noiseScale;
@@ -869,7 +1071,6 @@ const addCosmicDust = (container) => {
     const distance = STAR_DISTANCE_MIN + (UNIVERSE_RADIUS - STAR_DISTANCE_MIN) * 0.8 * Math.random();
     const theta = Math.random() * Math.PI * 2;
     const phi = Math.acos(2 * Math.random() - 1);
-    
     const x = distance * Math.sin(phi) * Math.cos(theta);
     const y = distance * Math.sin(phi) * Math.sin(theta);
     const z = distance * Math.cos(phi);
@@ -889,6 +1090,7 @@ const addCosmicDust = (container) => {
     sizes.push(size);
   }
   
+  // Create cosmic dust particles
   const geometry = new BufferGeometry();
   geometry.setAttribute('position', new Float32BufferAttribute(vertices, 3));
   geometry.setAttribute('color', new Float32BufferAttribute(colors, 3));
@@ -906,8 +1108,8 @@ const addCosmicDust = (container) => {
   const cosmicDust = new Points(geometry, material);
   cosmicDust.name = 'cosmicDust';
   container.add(cosmicDust);
-};
-
+};  
+    // Random star colors
 // Add light scattering and lens flare effects for the sun and bright stars
 export const addLightScatteringEffects = (scene, camera, sunPosition) => {
   // Create a group for all light scattering effects
@@ -934,40 +1136,32 @@ export const addLightScatteringEffects = (scene, camera, sunPosition) => {
     );
     
     // Random star colors
-    const starColors = [0xccddff, 0xffffee, 0xffddbb, 0xaaccff];
-    const color = starColors[Math.floor(Math.random() * starColors.length)];
+    const color = new Color(Math.random() * 0xffffff);
     
-    // Create lens flare with smaller size than sun
-    createLensFlare(starPosition, color, 15 + Math.random() * 20, lightEffectsGroup);
+    // Create lens flare for this star
+    createLensFlare(starPosition, color, 50, lightEffectsGroup);
   }
-  
-  // Add effects to scene
-  scene.add(lightEffectsGroup);
   
   return lightEffectsGroup;
 };
 
-// Helper function to create a lens flare effect
+// Create a lens flare effect at a given position
 const createLensFlare = (position, color, size, parent) => {
-  // Create a simple lens flare using a bright point with additive blending
-  const flareGeometry = new BufferGeometry();
-  const flareVertices = [];
-  const flareColors = [];
-  const flareSizes = [];
+  const vertices = [];
+  const colors = [];
+  const sizes = [];
   
-  // Main flare
-  flareVertices.push(position.x, position.y, position.z);
-  
-  const flareColor = new Color(color);
-  flareColors.push(flareColor.r, flareColor.g, flareColor.b);
-  flareSizes.push(size);
+  // Central bright spot
+  vertices.push(position.x, position.y, position.z);
+  colors.push(color.r, color.g, color.b);
+  sizes.push(size);
   
   // Additional flare elements (smaller halos)
   const flareElements = 5;
   for (let i = 0; i < flareElements; i++) {
     // Slightly offset positions to create halo effect
     const offsetFactor = (i + 1) * 0.05;
-    flareVertices.push(
+    vertices.push(
       position.x + (Math.random() - 0.5) * offsetFactor,
       position.y + (Math.random() - 0.5) * offsetFactor,
       position.z + (Math.random() - 0.5) * offsetFactor
@@ -975,13 +1169,14 @@ const createLensFlare = (position, color, size, parent) => {
     
     // Varying colors and sizes for halo elements
     const elementColor = new Color(color).multiplyScalar(0.7 - i * 0.1);
-    flareColors.push(elementColor.r, elementColor.g, elementColor.b);
-    flareSizes.push(size * (0.7 - i * 0.1));
+    colors.push(elementColor.r, elementColor.g, elementColor.b);
+    sizes.push(size * (0.7 - i * 0.1));
   }
   
-  flareGeometry.setAttribute('position', new Float32BufferAttribute(flareVertices, 3));
-  flareGeometry.setAttribute('color', new Float32BufferAttribute(flareColors, 3));
-  flareGeometry.setAttribute('size', new Float32BufferAttribute(flareSizes, 1));
+  const flareGeometry = new BufferGeometry();
+  flareGeometry.setAttribute('position', new Float32BufferAttribute(vertices, 3));
+  flareGeometry.setAttribute('color', new Float32BufferAttribute(colors, 3));
+  flareGeometry.setAttribute('size', new Float32BufferAttribute(sizes, 1));
   
   const flareMaterial = new PointsMaterial({
     size: 150,
